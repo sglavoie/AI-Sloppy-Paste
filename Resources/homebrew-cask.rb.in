@@ -12,7 +12,7 @@ cask "sloppy-paste" do
     strategy :github_latest
   end
 
-  depends_on macos: ">= :sequoia"
+  depends_on macos: :sequoia
 
   app "SloppyPaste.app"
   binary "#{appdir}/SloppyPaste.app/Contents/MacOS/sloppyctl"

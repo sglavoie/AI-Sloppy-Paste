@@ -43,7 +43,10 @@ if ! grep -Fq '| `sloppy-paste` |' "$tap/README.md"; then
     echo "Add Sloppy Paste to the tap README (Cask and Updated by tables) and commit first." >&2
     exit 1
 fi
-brew style "$out/sloppy-paste.rb"
+# Homebrew selects its cask-specific style rules by the Casks/ path.
+mkdir "$scratch/Casks"
+cp "$out/sloppy-paste.rb" "$scratch/Casks/sloppy-paste.rb"
+brew style "$scratch/Casks/sloppy-paste.rb"
 git fetch -q origin
 git merge-base --is-ancestor "$commit" origin/main || { echo "Push $commit to origin/main first." >&2; exit 1; }
 

@@ -38,7 +38,8 @@ rm -rf "$out"
 mkdir -p "$out"
 ditto .build/bundle/SloppyPaste.app "$app"
 for executable in SloppyPaste sloppyctl; do
-    lipo "$app/Contents/MacOS/$executable" -verify_arch arm64 x86_64
+    lipo "$app/Contents/MacOS/$executable" -verify_arch arm64
+    lipo "$app/Contents/MacOS/$executable" -verify_arch x86_64
 done
 codesign --force --options runtime --timestamp --sign "$identity" "$app/Contents/MacOS/sloppyctl"
 codesign --force --options runtime --timestamp --sign "$identity" "$app"

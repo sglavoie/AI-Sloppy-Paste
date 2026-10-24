@@ -1,7 +1,7 @@
 # Sloppy Paste
 
 A native macOS app for storing, searching and pasting text snippets. It replaces
-the [AI Sloppy Paste](../../typescript/ai-sloppy-paste) Raycast extension and
+the [AI Sloppy Paste](https://github.com/sglavoie/dev-helpers/tree/main/typescript/ai-sloppy-paste) Raycast extension and
 keeps its data format, tags, `{{…}}` placeholder grammar and keyboard shortcuts.
 
 A global hotkey (⌃⌥⌘V by default) opens a Spotlight-style picker. Choosing a

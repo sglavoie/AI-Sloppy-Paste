@@ -8,6 +8,35 @@ A global hotkey (⌃⌥⌘V by default) opens a Spotlight-style picker. Choosing
 snippet pastes it into the app that was frontmost. The app lives in the menu bar
 and has no Dock icon.
 
+## Install
+
+On macOS 15 or later, install the signed and notarized release with Homebrew:
+
+```bash
+brew install --cask sglavoie/tap/sloppy-paste
+open -a SloppyPaste
+```
+
+The release supports Apple silicon and Intel Macs. Homebrew installs the app
+and the `sloppyctl` command; no Swift toolchain or local signing setup is needed.
+You can also download `SloppyPaste.zip` from the
+[latest release](https://github.com/sglavoie/AI-Sloppy-Paste/releases/latest),
+unzip it, and move `SloppyPaste.app` to Applications.
+
+Grant Accessibility permission when prompted to enable pasting into other apps.
+Update with `brew upgrade --cask sloppy-paste`. Uninstalling with
+`brew uninstall --cask sloppy-paste` keeps snippets, drafts, and settings;
+adding `--zap` deletes those too.
+
+When switching from a locally signed build, quit the old app and disable its
+launch-at-login setting before installing. Remove the old copy from
+`~/Applications` so only the Homebrew copy remains. Your data stays in
+`~/Library/Application Support/SloppyPaste`. Grant Accessibility permission to
+the new copy and re-enable launch at login if desired; the release uses a
+different signing identity from local builds.
+
+## Using the picker
+
 Each open starts clean, with an empty search, no filters and the first row
 selected. The search field starts unfocused: j/k (or ↓/↑) move through the list.
 ⌘F, or k on the first row, focuses the search field. Esc first clears a typed
@@ -59,7 +88,7 @@ change the pane's width; double-click the divider to reset it. The width is
 remembered like the picker's size and can be set under **Settings › Picker ›
 Detail pane width**. The list always keeps at least 280 points.
 
-## Requirements
+## Requirements for building from source
 
 - macOS 15 or later.
 - The Xcode Command Line Tools with Swift 6.2 or later. Xcode itself is not
@@ -86,6 +115,8 @@ just
 | `uninstall` | Quit the app and remove it from `~/Applications`. |
 | `show-dr` | Print the designated requirement of the built app. |
 | `setup-signing` | One-off: create the local code-signing identity. |
+| `release` | Test, build universal binaries, sign with Developer ID, notarize, and archive. |
+| `publish` | Publish the prepared GitHub release and update the Homebrew cask. |
 | `clean` | Remove build artifacts. |
 
 The package has three targets:
@@ -100,7 +131,10 @@ The `.app` bundle is put together by hand from `Resources/Info.plist.in` and
 `Resources/icon.png`, since there is no Xcode project. The app target uses no
 SwiftPM resources for the same reason.
 
-## Signing
+## Local development signing
+
+Homebrew releases are signed with Developer ID and notarized by Apple. The
+following setup applies only to builds you compile and install locally.
 
 Accessibility permission is tied to the app's designated requirement. With
 ad-hoc signing that requirement changes on every build, so macOS would forget
@@ -121,6 +155,34 @@ keychain on its own, including after a reboot.
 To check that a rebuild kept the same identity, compare `just show-dr` before and
 after. The output should be identical, naming `dev.sglavoie.SloppyPaste` and the
 same certificate leaf hash.
+
+## Publishing a release
+
+Releases follow the same local Developer ID and notarization workflow as
+LaunchGrid. Install `gh`, `just`, and Homebrew, and keep a clean clone of
+`sglavoie/homebrew-tap` at `../sglavoie_homebrew-tap` (or set `TAP_DIR`).
+
+1. Bump `SloppyCore.version` in `Sources/SloppyCore/SloppyCore.swift`, commit,
+   and push to `origin/main`.
+2. Run `just release`. It runs the tests, builds both architectures, signs the
+   app and `sloppyctl`, notarizes and staples the app, and prepares
+   `.build/release/SloppyPaste.zip`, `SHA256SUMS`, and `sloppy-paste.rb`.
+3. Run `just publish`, optionally followed by release notes. It verifies the
+   prepared archive, publishes the GitHub release at the recorded build commit,
+   and commits and pushes the cask update to the tap. A retry checks that an
+   existing release contains the same archive before updating the cask.
+
+`SIGN_IDENTITY` can select a Developer ID Application certificate by hash;
+otherwise the release script uses the sole matching identity in the keychain.
+`NOTARY_PROFILE` selects a `notarytool` keychain profile. It defaults to the
+existing `launchgrid` account profile, which can notarize either app. To set up
+a separate profile, use `xcrun notarytool store-credentials sloppy-paste
+--apple-id <Apple-ID> --team-id <Team-ID>` and set
+`NOTARY_PROFILE=sloppy-paste`. Credentials stay in the keychain.
+
+The cask is generated from `Resources/homebrew-cask.rb.in`; make lasting cask
+changes there. Release artifacts record their source commit and checksum, and
+publishing refuses an archive that differs from an already published version.
 
 ## Permissions
 
@@ -153,7 +215,7 @@ Settings says it is not available and the previous hotkey stays active.
 ### Launch at login
 
 Turn it on in Settings → General. It uses `SMAppService`, so it only works from
-the signed bundle, ideally the copy in `~/Applications`. If macOS wants approval,
+the signed bundle installed in Applications. If macOS wants approval,
 Settings links to System Settings → General → Login Items.
 
 ## Data

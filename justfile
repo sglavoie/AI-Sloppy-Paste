@@ -48,15 +48,22 @@ icon:
     iconutil -c icns -o "{{bundle_dir}}/AppIcon.icns" "$iconset"
 
 # Assemble an unsigned SloppyPaste.app in .build/bundle
+# UNIVERSAL=1 builds both Apple silicon and Intel for distribution.
 bundle: icon
     #!/usr/bin/env bash
     set -euo pipefail
-    swift build -c release --product {{app_name}}
-    bin_path="$(swift build -c release --show-bin-path)"
+    build_args=(-c release)
+    if [[ "${UNIVERSAL:-0}" == 1 ]]; then
+        build_args+=(--arch arm64 --arch x86_64)
+    fi
+    swift build "${build_args[@]}"
+    bin_path="$(swift build "${build_args[@]}" --show-bin-path)"
     build_number="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
     rm -rf "{{app_path}}"
     mkdir -p "{{app_path}}/Contents/MacOS" "{{app_path}}/Contents/Resources"
     cp "$bin_path/{{app_name}}" "{{app_path}}/Contents/MacOS/{{app_name}}"
+    cp "$bin_path/sloppyctl" "{{app_path}}/Contents/MacOS/sloppyctl"
+    cp LICENSE "{{app_path}}/Contents/Resources/LICENSE"
     cp "{{bundle_dir}}/AppIcon.icns" "{{app_path}}/Contents/Resources/AppIcon.icns"
     sed -e "s/@EXECUTABLE@/{{app_name}}/" \
         -e "s/@BUNDLE_ID@/{{bundle_id}}/" \
@@ -78,9 +85,21 @@ sign: bundle
     codesign --force --timestamp=none \
         --sign "{{signing_identity}}" \
         --keychain "{{signing_keychain}}" \
+        "{{app_path}}/Contents/MacOS/sloppyctl"
+    codesign --force --timestamp=none \
+        --sign "{{signing_identity}}" \
+        --keychain "{{signing_keychain}}" \
         --identifier "{{bundle_id}}" \
         "{{app_path}}"
     codesign --verify --strict --verbose=2 "{{app_path}}"
+
+# Test, build universal binaries, sign with Developer ID, notarize and archive
+release:
+    scripts/release.sh
+
+# Publish the prepared GitHub release and update sglavoie/homebrew-tap
+publish *notes:
+    scripts/publish.sh {{quote(notes)}}
 
 # Sign, then replace the copy in ~/Applications and launch it
 install: sign

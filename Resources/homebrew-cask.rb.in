@@ -1,0 +1,26 @@
+cask "sloppy-paste" do
+  version "@VERSION@"
+  sha256 "@SHA256@"
+
+  url "https://github.com/sglavoie/AI-Sloppy-Paste/releases/download/v#{version}/SloppyPaste.zip"
+  name "Sloppy Paste"
+  desc "Searchable text snippets with tags and placeholder forms"
+  homepage "https://github.com/sglavoie/AI-Sloppy-Paste"
+
+  livecheck do
+    url :url
+    strategy :github_latest
+  end
+
+  depends_on macos: ">= :sequoia"
+
+  app "SloppyPaste.app"
+  binary "#{appdir}/SloppyPaste.app/Contents/MacOS/sloppyctl"
+
+  uninstall quit: "dev.sglavoie.SloppyPaste"
+
+  zap trash: [
+    "~/Library/Application Support/SloppyPaste",
+    "~/Library/Preferences/dev.sglavoie.SloppyPaste.plist",
+  ]
+end

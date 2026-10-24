@@ -14,6 +14,7 @@ profile="${NOTARY_PROFILE:-launchgrid}"
 version="$(sed -n 's/.*static let version = "\(.*\)".*/\1/p' Sources/SloppyCore/SloppyCore.swift)"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release version: $version" >&2; exit 1; }
 [[ -z "$(git status --porcelain)" ]] || { echo "Commit or stash changes before releasing." >&2; exit 1; }
+commit="$(git rev-parse HEAD)"
 gh auth status >/dev/null
 if gh release view "v$version" >/dev/null 2>&1; then
     echo "v$version already exists; bump SloppyCore.version before building another release." >&2
@@ -29,19 +30,22 @@ fi
 xcrun notarytool history --keychain-profile "$profile" --output-format json >/dev/null
 swift test
 UNIVERSAL=1 just bundle
+[[ "$(git rev-parse HEAD)" == "$commit" && -z "$(git status --porcelain)" ]] || {
+    echo "Source changed during the build; run just release again." >&2; exit 1;
+}
 
 rm -rf "$out"
 mkdir -p "$out"
 ditto .build/bundle/SloppyPaste.app "$app"
 for executable in SloppyPaste sloppyctl; do
-    lipo -verify_arch arm64 x86_64 "$app/Contents/MacOS/$executable"
+    lipo "$app/Contents/MacOS/$executable" -verify_arch arm64 x86_64
 done
 codesign --force --options runtime --timestamp --sign "$identity" "$app/Contents/MacOS/sloppyctl"
 codesign --force --options runtime --timestamp --sign "$identity" "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 "$app/Contents/MacOS/sloppyctl" --version
 ditto -c -k --keepParent "$app" "$archive"
-git rev-parse HEAD > "$out/COMMIT"
+printf '%s\n' "$commit" > "$out/COMMIT"
 
 if ! xcrun notarytool submit "$archive" --keychain-profile "$profile" --wait \
     --output-format json > "$out/notarization.json"; then

@@ -64,6 +64,7 @@ struct SnippetRowView: View {
 
     @ViewBuilder
     private func accessories(_ analytics: SnippetAnalytics) -> some View {
+        let tags = snippet.normalizedTags
         let requiredInputs = PickerListModel.requiredInputCount(snippet)
         HStack(spacing: 6) {
             if analytics.isStale && !snippet.isArchived {
@@ -86,12 +87,12 @@ struct SnippetRowView: View {
             if snippet.isFavorite {
                 Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow).sharpWhenZoomed().help("Bookmarked")
             }
-            if snippet.tags.isEmpty {
+            if tags.isEmpty {
                 Chip(text: "untagged", color: .secondary)
             } else {
-                ForEach(snippet.tags.prefix(3), id: \.self) { Chip(text: $0) }
-                if snippet.tags.count > 3 {
-                    Chip(text: "+\(snippet.tags.count - 3)", color: .secondary)
+                ForEach(tags.prefix(3), id: \.self) { Chip(text: $0) }
+                if tags.count > 3 {
+                    Chip(text: "+\(tags.count - 3)", color: .secondary)
                 }
             }
             Text(Formatting.relativeTime(snippet.updatedAt, now: now))

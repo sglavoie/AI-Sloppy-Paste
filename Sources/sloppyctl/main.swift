@@ -15,6 +15,7 @@ let usage = """
     --data defaults to \(StorageFile.defaultURL.path).
     import merges by default; --replace writes data.json.bak first.
     stats, search and render read data without modifying the input file.
+    Use -- to end options before literal arguments beginning with --.
     render resolves system placeholders, conditionals and values; keys not
     given use their default (or first authored choice), and guards use their
     `+` default. Optional choice wrappers follow the form's enabled state.
@@ -48,9 +49,9 @@ struct Stats: Codable {
         archived = snippets.filter(\.isArchived).count
         pinned = snippets.filter(\.isPinned).count
         favorites = snippets.filter(\.isFavorite).count
-        tagged = snippets.filter { !$0.tags.isEmpty }.count
+        tagged = snippets.filter { !$0.normalizedTags.isEmpty }.count
         untagged = snippets.count - tagged
-        distinctTags = Set(snippets.flatMap(\.tags)).count
+        distinctTags = Set(snippets.flatMap(\.normalizedTags)).count
         totalUses = snippets.reduce(0) { UsageCount.adding($0, $1.useCount) }
         stale = snippets.filter { Staleness.analyze($0, now: now).isStale }.count
         contexts = TitleContext.allContexts(snippets).count
@@ -83,6 +84,9 @@ struct Options {
         var iterator = arguments.makeIterator()
         while let argument = iterator.next() {
             switch argument {
+            case "--":
+                positional.append(contentsOf: iterator)
+                return
             case "--data":
                 guard let path = iterator.next() else { throw CommandError(description: "--data needs a path") }
                 dataURL = URL(filePath: (path as NSString).expandingTildeInPath)

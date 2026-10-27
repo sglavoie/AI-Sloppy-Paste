@@ -165,7 +165,7 @@ public enum TagHierarchy {
     /// Snippets carrying `tag` or one of its descendants; `untaggedSentinel` selects untagged snippets.
     public static func filterSnippets(_ snippets: [Snippet], byTag tag: String) -> [Snippet] {
         if tag == untaggedSentinel {
-            return snippets.filter { $0.tags.isEmpty }
+            return snippets.filter { $0.normalizedTags.isEmpty }
         }
         return snippets.filter { $0.tags.contains { matches($0, filter: tag) } }
     }

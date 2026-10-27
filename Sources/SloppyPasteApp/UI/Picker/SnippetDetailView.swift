@@ -7,6 +7,7 @@ struct SnippetDetailView: View {
 
     var body: some View {
         let context = TitleContext.parse(snippet.title).context
+        let tags = snippet.normalizedTags
 
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
@@ -23,10 +24,10 @@ struct SnippetDetailView: View {
                     }
                 }
                 row("Tags") {
-                    if snippet.tags.isEmpty {
+                    if tags.isEmpty {
                         Chip(text: "untagged", color: .secondary)
                     } else {
-                        FlowTags(tags: snippet.tags)
+                        FlowTags(tags: tags)
                     }
                 }
                 if !snippet.description.isEmpty {

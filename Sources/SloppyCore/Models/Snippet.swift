@@ -14,6 +14,12 @@ public struct Snippet: Codable, Sendable, Hashable, Identifiable {
     public var isArchived: Bool
     public var isPinned: Bool
 
+    /// Tag identities for display, filtering and statistics. External files
+    /// may contain blanks or case variants; retain the original stored tags.
+    public var normalizedTags: [String] {
+        TagNormalization.deduplicateTags(TagNormalization.normalizeTags(tags))
+    }
+
     public init(
         id: String,
         title: String,

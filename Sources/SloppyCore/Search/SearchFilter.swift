@@ -52,7 +52,7 @@ public enum SearchFilter {
         switch filter {
         case .favorite, .bookmarked: snippet.isFavorite
         case .archived: snippet.isArchived
-        case .untagged: snippet.tags.isEmpty
+        case .untagged: snippet.normalizedTags.isEmpty
         }
     }
 }

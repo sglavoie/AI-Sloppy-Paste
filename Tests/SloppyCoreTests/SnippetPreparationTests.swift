@@ -75,6 +75,30 @@ import Testing
         #expect(MissingPlaceholderHistoryError(placeholderKey: "b").description == "No history for {{b}}")
     }
 
+    @Test(arguments: ["", " \t\n"])
+    func blankHistoryCannotSatisfyRequiredFields(blank: String) {
+        let s = snippet("Hello {{name}}")
+        let values = history(["name": blank])
+        #expect(SnippetPreparation.lastValuesAvailability(for: s, history: values, now: Self.now) == .unavailable)
+        #expect(throws: MissingPlaceholderHistoryError(placeholderKey: "name")) {
+            try SnippetPreparation.prepareWithLastValues(s, history: values, now: Self.now)
+        }
+    }
+
+    @Test func lastValuesSkipsBlankImportedHistoryWithoutTrimmingValidText() throws {
+        let s = snippet("Hello {{name}}")
+        let values: PlaceholderHistory = ["name": [
+            .init(value: " Ada ", useCount: 1, lastUsed: 1, createdAt: 1),
+            .init(value: " \n", useCount: 1, lastUsed: 2, createdAt: 2),
+        ]]
+        #expect(SnippetPreparation.lastValuesAvailability(for: s, history: values, now: Self.now) == .available)
+        let prepared = try SnippetPreparation.prepareWithLastValues(s, history: values, now: Self.now)
+        #expect(prepared.content == "Hello  Ada ")
+        var form = PlaceholderFormModel(snippetContent: s.content,
+            placeholders: PlaceholderSyntaxParser.extractPlaceholders(s.content), history: values, now: Self.now)
+        #expect(form.prepareSubmission() == prepared)
+    }
+
     @Test func lastValuesHonorsGuardDefaultsLikeTheForm() throws {
         let content = #"{{name}}{{#if +signature "Signature"}} — Thanks{{/if}}{{#if extra}} Extra{{#else}}!{{/if}}"#
         let values = history(["name": "Ada", "signature": "", "extra": "previous value"])

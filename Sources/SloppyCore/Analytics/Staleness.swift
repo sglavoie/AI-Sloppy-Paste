@@ -24,8 +24,11 @@ public enum Staleness {
     /// A snippet is stale when it was never used and is at least 30 days old,
     /// or was last used 90 or more days ago. Pinned snippets are never stale.
     public static func analyze(_ snippet: Snippet, now: Int64) -> SnippetAnalytics {
-        let daysUnused = snippet.lastUsedAt.map { Int(Formatting.floorDiv(now - $0, msPerDay)) }
-        let daysSinceCreation = Int(Formatting.floorDiv(now - snippet.createdAt, msPerDay))
+        let daysUnused = snippet.lastUsedAt.map {
+            Int(Formatting.floorDiv(Formatting.elapsedSeconds(since: $0, now: now), msPerDay / 1000))
+        }
+        let daysSinceCreation = Int(Formatting.floorDiv(
+            Formatting.elapsedSeconds(since: snippet.createdAt, now: now), msPerDay / 1000))
 
         var reason: String?
         if !snippet.isPinned {

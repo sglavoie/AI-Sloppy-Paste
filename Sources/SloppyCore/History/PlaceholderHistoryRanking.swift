@@ -11,7 +11,7 @@ public enum PlaceholderHistoryRanking {
     public static func rank(_ values: [PlaceholderHistoryValue], now: Int64) -> [PlaceholderHistoryValue] {
         values
             .map { value in
-                let daysAgo = max(1, Double(now - value.lastUsed) / oneDayMs)
+                let daysAgo = max(1, (Double(now) - Double(value.lastUsed)) / oneDayMs)
                 let score = frequencyWeight * Double(value.useCount) + recencyWeight * (1 / daysAgo) * 100
                 return (value, score)
             }
@@ -38,9 +38,12 @@ public enum PlaceholderHistoryRanking {
         rank(values, now: now).first?.value
     }
 
-    /// The value with the latest `lastUsed`, ignoring frequency; the first wins a tie.
+    /// The non-blank value with the latest `lastUsed`, ignoring frequency;
+    /// the first wins a tie. Imports may contain blank values that cannot
+    /// satisfy required fields. Preserve valid values exactly as stored.
     public static func lastUsedValue(_ values: [PlaceholderHistoryValue]) -> String? {
         values.reduce(nil as PlaceholderHistoryValue?) { latest, current in
+            guard !current.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return latest }
             guard let latest, current.lastUsed <= latest.lastUsed else { return current }
             return latest
         }?.value

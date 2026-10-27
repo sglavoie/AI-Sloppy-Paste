@@ -88,6 +88,19 @@ import Testing
         #expect(Self.ids([Self.snippet("1", isArchived: true), Self.snippet("2")], "") == ["2"])
     }
 
+    @Test func archivedOperatorWorksWithoutTogglingArchiveView() {
+        let snippets = [
+            Self.snippet("active", tags: ["work"], isFavorite: true),
+            Self.snippet("archived", tags: ["work"], isFavorite: true, isArchived: true),
+            Self.snippet("other", tags: ["personal"], isArchived: true),
+        ]
+        #expect(Self.ids(snippets, "is:archived") == ["archived", "other"])
+        #expect(Self.ids(snippets, "is:archived", SnippetFilterOptions(selectedTag: "work", showOnlyFavorites: true))
+            == ["archived"])
+        #expect(Self.ids(snippets, "is:archived not:archived").isEmpty)
+        #expect(Self.ids(snippets, "not:archived") == ["active"])
+    }
+
     // MARK: Needs attention
 
     @Test func needsAttentionKeepsStale() {

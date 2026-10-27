@@ -5,7 +5,7 @@ public enum Formatting {
     /// `"just now"`, `"5m ago"`, `"3h ago"`, `"2d ago"`, `"4w ago"`, `"2mo ago"`, `"1y ago"`.
     /// Future timestamps read as `"just now"`.
     public static func relativeTime(_ timestamp: Int64, now: Int64) -> String {
-        let seconds = floorDiv(now - timestamp, 1000)
+        let seconds = elapsedSeconds(since: timestamp, now: now)
         let minutes = floorDiv(seconds, 60)
         let hours = floorDiv(minutes, 60)
         let days = floorDiv(hours, 24)
@@ -47,6 +47,15 @@ public enum Formatting {
     static func floorDiv(_ a: Int64, _ b: Int64) -> Int64 {
         let quotient = a / b
         return (a % b != 0 && (a < 0) != (b < 0)) ? quotient - 1 : quotient
+    }
+
+    /// Whole elapsed seconds, floored even for future timestamps. Split into
+    /// seconds and remainders before subtracting: two valid Int64 timestamps
+    /// can have a millisecond difference too large to fit in Int64.
+    static func elapsedSeconds(since timestamp: Int64, now: Int64) -> Int64 {
+        let seconds = now / 1000 - timestamp / 1000
+        let milliseconds = now % 1000 - timestamp % 1000
+        return seconds + floorDiv(milliseconds, 1000)
     }
 }
 

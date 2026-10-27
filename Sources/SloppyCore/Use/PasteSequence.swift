@@ -6,7 +6,7 @@ import Foundation
 @MainActor
 public struct PasteSequence<Target> {
     public var copy: @MainActor (String) throws -> Void
-    /// Accessibility and Secure Input before anything else happens.
+    /// Accessibility and Secure Input before activation and again after the delay.
     public var permission: @MainActor () -> PasteOutcome
     public var isSecureInputEnabled: @MainActor () -> Bool
     /// Whether the target process is still running.
@@ -51,6 +51,8 @@ public struct PasteSequence<Target> {
             return .copiedOnly(.targetUnavailable)
         }
         await wait()
+        let finalDecision = permission()
+        guard finalDecision == .pasted else { return finalDecision }
         // The target's focused field may have turned Secure Input on once it was active again.
         if isSecureInputEnabled() {
             return .copiedOnly(.secureInput)

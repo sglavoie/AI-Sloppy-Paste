@@ -67,12 +67,14 @@ public enum SnippetListPipeline {
             hasStructuredOperators: parsed.hasStructuredOperators)
     }
 
-    /// The archive view, tag dropdown and favorites toggle apply before the
-    /// query, so they keep working once the query holds operators such as `tag:foo`.
+    /// The tag dropdown and view toggles still apply with search operators.
+    /// An explicit `is:archived` also opens the archive scope, so the default
+    /// exclusion of archived snippets cannot make that operator match nothing.
     public static func filter(
         _ snippets: [Snippet], query: ParsedQuery, options: SnippetFilterOptions, now: Int64
     ) -> [Snippet] {
-        var result = snippets.filter { $0.isArchived == options.showArchivedSnippets }
+        let showArchived = options.showArchivedSnippets || query.isFilters.contains(.archived)
+        var result = snippets.filter { $0.isArchived == showArchived }
         if let tag = options.selectedTag {
             result = TagHierarchy.filterSnippets(result, byTag: tag)
         }

@@ -96,6 +96,15 @@ import Testing
         #expect(system.keyEvents.isEmpty)
     }
 
+    @Test func permissionRevokedDuringTheDelayOnlyCopies() async throws {
+        let system = FakeSystem(frontmost: 1)
+        system.duringWait = { system.permission = .copiedOnly(.accessibilityMissing) }
+        let outcome = try await system.sequence().run("Hello", into: 1)
+        #expect(outcome == .copiedOnly(.accessibilityMissing))
+        #expect(system.clipboard == "Hello")
+        #expect(system.keyEvents.isEmpty)
+    }
+
     @Test func targetUnavailableHUDExplainsTheFallback() throws {
         let hud = try #require(PasteOutcome.copiedOnly(.targetUnavailable).hud)
         #expect(hud.title == "Copied to Clipboard")

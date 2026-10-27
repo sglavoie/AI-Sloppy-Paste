@@ -52,6 +52,19 @@ import Testing
         #expect(R.filter(["one", "two", "three"], query: "xyz").isEmpty)
     }
 
+    @Test func historySearchFindsMatchesOutsideTheUnfilteredDisplayLimit() {
+        let values = [
+            Self.value("frequent", 100), Self.value("other", 90),
+            Self.value("Alice", 2), Self.value("alice@example.com", 1),
+        ]
+        #expect(R.search(values, query: "  ALICE  ", now: Self.now, limit: 1).map(\.value) == ["Alice"])
+        #expect(R.search(values, query: "alice", now: Self.now, limit: 2).map(\.value)
+            == ["Alice", "alice@example.com"])
+        #expect(R.search(values, query: "  ", now: Self.now, limit: 2).map(\.value) == ["frequent", "other"])
+        #expect(R.search(values, query: "missing", now: Self.now, limit: 2).isEmpty)
+        #expect(R.search([], query: "", now: Self.now, limit: 2).isEmpty)
+    }
+
     @Test func topRankedValue() {
         #expect(R.topRankedValue([Self.value("second", 5), Self.value("first", 10)], now: Self.now) == "first")
         #expect(R.topRankedValue([], now: Self.now) == nil)

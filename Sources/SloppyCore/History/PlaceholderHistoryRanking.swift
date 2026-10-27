@@ -26,6 +26,16 @@ public enum PlaceholderHistoryRanking {
         return Array(ranked.prefix(limit))
     }
 
+    /// Searches all stored values before capping the ranked matches, so values
+    /// outside the default display limit can still be found and managed.
+    public static func search(
+        _ values: [PlaceholderHistoryValue], query: String, now: Int64, limit: Int
+    ) -> [PlaceholderHistoryValue] {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let matches = values.filter { needle.isEmpty || $0.value.lowercased().contains(needle) }
+        return Array(rank(matches, now: now).prefix(max(1, limit)))
+    }
+
     /// Case-insensitive substring filter; a blank query keeps everything.
     public static func filter(_ values: [String], query: String) -> [String] {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return values }

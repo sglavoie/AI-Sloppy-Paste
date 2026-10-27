@@ -338,10 +338,8 @@ struct PlaceholderHistoryDetailView: View {
     // MARK: State
 
     private func values() -> [PlaceholderHistoryValue] {
-        let ranked = PlaceholderHistoryRanking.rank(store.data.placeholderHistory(forKey: key), now: store.now())
-        let limited = ranked.prefix(max(1, maxDisplayedHistoryValues))
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return limited.filter { needle.isEmpty || $0.value.lowercased().contains(needle) }
+        PlaceholderHistoryRanking.search(
+            store.data.placeholderHistory(forKey: key), query: query, now: store.now(), limit: maxDisplayedHistoryValues)
     }
 
     private func currentSelection() -> PlaceholderHistoryValue? {

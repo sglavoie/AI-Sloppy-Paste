@@ -47,6 +47,32 @@ final class TagPickerModel {
         self.commit = commit
     }
 
+    convenience init(snippet: Snippet, store: SnippetStore, toasts: ToastCenter) {
+        var expectedTags = TagNormalization.removeRedundantParents(snippet.tags)
+        self.init(
+            title: "Tags for \"\(snippet.title)\"", initialTags: snippet.tags,
+            knownTags: SnippetRepository(data: store.data).tags, toasts: toasts
+        ) { tags in
+            let saved = try store.mutate { repository, now in
+                guard let current = repository.snippet(id: snippet.id) else { throw StorageError.snippetNotFound }
+                // The picker holds a snapshot. Reloading alone does not make
+                // replacing that snapshot safe after an external tag edit.
+                guard TagNormalization.removeRedundantParents(current.tags) == expectedTags else {
+                    throw TagEditConflict()
+                }
+                return try repository.updateSnippet(id: snippet.id, now: now) { $0.tags = tags }
+            }
+            // Advance only once the store has successfully saved the toggle.
+            expectedTags = TagNormalization.removeRedundantParents(saved.tags)
+        }
+    }
+
+    private struct TagEditConflict: Error, CustomStringConvertible {
+        var description: String {
+            "This snippet's tags changed while the tag picker was open. No changes were saved. Close and reopen the tag picker to review the latest tags."
+        }
+    }
+
     var rows: [TagPicker.Row] {
         TagPicker.buildRows(knownTags: knownTags, selectedTags: selectedTags)
     }
@@ -358,15 +384,6 @@ struct TagPickerScreen: View {
             missingSnippet = true
             return
         }
-        let id = snippetID
-        model = TagPickerModel(
-            title: "Tags for \"\(snippet.title)\"", initialTags: snippet.tags,
-            knownTags: SnippetRepository(data: store.data).tags, toasts: toasts
-        ) { [store] tags in
-            store.reloadIfChanged()
-            try store.mutate { repository, now in
-                try repository.updateSnippet(id: id, now: now) { $0.tags = tags }
-            }
-        }
+        model = TagPickerModel(snippet: snippet, store: store, toasts: toasts)
     }
 }

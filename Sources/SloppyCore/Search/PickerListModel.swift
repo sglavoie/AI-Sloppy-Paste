@@ -153,9 +153,9 @@ public enum PickerListModel {
 
     /// Number of required inputs the user must fill (system placeholders excluded), for the `⌨ n` badge.
     public static func requiredInputCount(_ snippet: Snippet) -> Int {
-        let systemKeys = Set(SystemPlaceholders.names)
-        return PlaceholderSyntaxParser.extractPlaceholders(snippet.content)
-            .count { $0.isRequired && !systemKeys.contains($0.key) }
+        // Use the form's extraction pipeline: modified names such as {{!DATE}}
+        // remain user inputs. The timestamp cannot affect the number of fields.
+        SnippetPreparation.requiredUserKeys(in: snippet.content, now: 0).count
     }
 
     private static func count(_ n: Int) -> String {

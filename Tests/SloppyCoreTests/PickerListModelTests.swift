@@ -153,6 +153,11 @@ import Testing
         ("Hi {{name}} on {{DATE}}", 1),
         ("{{a}} {{b|default}} {{c}}", 2),
         ("{{#if flag}}x{{/if}}", 0),
+        ("{{!DATE}}", 1),
+        ("{{DATE}} {{!DATE}}", 1),
+        ("{{DATE[Today|Tomorrow]}}", 1),
+        ("{{DATE|custom}} {{DATE}}", 0),
+        ("{{ DATE }} {{TIME}} {{DAY}} {{!TIME}}", 1),
     ])
     func requiredInputCount(content: String, expected: Int) {
         #expect(PickerListModel.requiredInputCount(Self.snippet("x", content: content)) == expected)

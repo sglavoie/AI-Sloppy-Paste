@@ -153,6 +153,23 @@ import Testing
         #expect(throws: (any Error).self) { try ImportExport.decodeImport(Data(#"{"version": 7}"#.utf8)) }
     }
 
+    @Test(arguments: ["99", #""99""#, #""99.0.0""#], ["[]", #"{"futureShape":true}"#])
+    func importRejectsFutureVersionsBeforeDecodingSnippets(version: String, snippets: String) {
+        let json = Data(#"{"version":\#(version),"snippets":\#(snippets)}"#.utf8)
+        #expect(throws: StorageError.unsupportedStorageVersion(99)) {
+            try ImportExport.decodeImport(json)
+        }
+    }
+
+    @Test(arguments: ["null", "1", #""1.0.0""#, "7", #""7.0.0""#])
+    func supportedImportVersionsPreserveHistory(version: String) throws {
+        let history = #"{"name":[{"value":"Ada","useCount":1,"lastUsed":2,"createdAt":1}]}"#
+        let json = Data(#"{"version":\#(version),"snippets":[],"placeholderHistory":\#(history)}"#.utf8)
+        let imported = try ImportExport.decodeImport(json)
+        #expect(ImportExport.replace(with: imported).placeholderHistory["name"]?.first?.value == "Ada")
+        #expect(try ImportExport.decodeImport(Data(#"{"snippets":[]}"#.utf8)).snippets.isEmpty)
+    }
+
     @Test func mergedHistoryKeepsMostRecentPastLimit() {
         let limit = StorageConstants.maxStoredValuesPerKey
         let current: PlaceholderHistory = ["k": (0..<limit).map { PlaceholderHistoryValue(value: "old\($0)", useCount: 1, lastUsed: Int64($0), createdAt: 0) }]

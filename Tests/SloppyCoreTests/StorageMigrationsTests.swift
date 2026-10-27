@@ -75,6 +75,13 @@ import Testing
         #expect(result.data.version == StorageConstants.currentVersion)
     }
 
+    @Test(arguments: ["1.0.0", "7.0.0"])
+    func readingExportsPreservesHistory(version: String) throws {
+        let json = #"{"version":"\#(version)","snippets":[],"placeholderHistory":{"name":[{"value":"Ada","useCount":1,"lastUsed":2,"createdAt":1}]}}"#
+        let result = try StorageMigrations.migrate(json: Data(json.utf8))
+        #expect(result.data.placeholderHistory["name"]?.first?.value == "Ada")
+    }
+
     @Test func futureVersionIsRejected() {
         #expect(throws: StorageError.unsupportedStorageVersion(99)) {
             try StorageMigrations.migrate(LegacyStorageData(version: 99))

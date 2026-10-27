@@ -28,7 +28,7 @@ public struct LegacyStorageData: Decodable, Sendable, Hashable {
         version = try? c.decodeIfPresent(Int.self, forKey: .version)
         // Check before decoding fields whose shape may have changed in a newer
         // version, so an unsupported document is never treated as corrupt.
-        try StorageMigrations.requireSupportedVersion(version)
+        try StorageMigrations.requireSupportedVersion(in: c, forKey: .version)
         snippets = try c.decodeIfPresent([LegacySnippet].self, forKey: .snippets) ?? []
         tags = (try? c.decodeIfPresent([LossyString].self, forKey: .tags))?.compactMap(\.value) ?? []
         placeholderHistory = try c.decodeIfPresent(PlaceholderHistory.self, forKey: .placeholderHistory)
@@ -88,6 +88,20 @@ public enum StorageMigrations {
     static func requireSupportedVersion(_ version: Int?) throws {
         if let version, version > StorageConstants.currentVersion {
             throw StorageError.unsupportedStorageVersion(version)
+        }
+    }
+
+    /// Stored files use an integer; exports use a dotted string such as
+    /// "7.0.0". Check both before decoding fields whose shape may have changed.
+    /// This check does not opt exports into the stored-file migration steps.
+    static func requireSupportedVersion<Key: CodingKey>(
+        in container: KeyedDecodingContainer<Key>, forKey key: Key
+    ) throws {
+        if let version = try? container.decode(Int.self, forKey: key) {
+            try requireSupportedVersion(version)
+        } else if let version = try? container.decode(String.self, forKey: key) {
+            let major = version.split(separator: ".", omittingEmptySubsequences: false).first.flatMap { Int($0) }
+            try requireSupportedVersion(major)
         }
     }
 

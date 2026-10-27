@@ -1,7 +1,7 @@
 import Foundation
 
 /// An import file as decoded leniently: snippets may be legacy-shaped and
-/// only `snippets` and `placeholderHistory` are read.
+/// only `snippets` and `placeholderHistory` are imported. Newer versions are rejected.
 public struct ImportPayload: Decodable, Sendable, Hashable {
     public var snippets: [LegacySnippet]
     public var placeholderHistory: PlaceholderHistory?
@@ -16,11 +16,12 @@ public struct ImportPayload: Decodable, Sendable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case snippets, placeholderHistory
+        case version, snippets, placeholderHistory
     }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        try StorageMigrations.requireSupportedVersion(in: c, forKey: .version)
         snippets = try c.decode([LegacySnippet].self, forKey: .snippets)
         placeholderHistory = try c.decodeIfPresent(PlaceholderHistory.self, forKey: .placeholderHistory)
     }

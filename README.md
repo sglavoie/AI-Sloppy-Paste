@@ -239,7 +239,8 @@ It uses the same `StorageData` JSON shape as the Raycast extension's export.
 - If a reload fails, changes and imports are blocked until the file can be
   read again. Fix the file access problem and retry; editor drafts stay intact.
 - A data file with a newer storage version is left untouched and blocks changes
-  and imports. Update Sloppy Paste to a version that supports it.
+  and imports. Imports from newer export versions are also rejected before
+  changing existing data. Update Sloppy Paste to a version that supports it.
 - A file that fails to decode is never overwritten. It is moved aside as
   `data.corrupt-<timestamp>.json`, the app starts empty, and an alert explains
   how to restore it.

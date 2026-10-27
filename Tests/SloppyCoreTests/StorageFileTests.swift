@@ -87,15 +87,15 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: directory.path))
     }
 
-    @Test(arguments: ["[]", #"{"futureShape": true}"#])
-    func futureVersionIsNeitherRewrittenNorQuarantined(snippets: String) throws {
+    @Test(arguments: ["99", #""99""#, #""99.0.0""#], ["[]", #"{"futureShape": true}"#])
+    func futureVersionIsNeitherRewrittenNorQuarantined(version: String, snippets: String) throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let original = Data(#"{"version":99,"snippets":\#(snippets),"futureField":"keep me"}"#.utf8)
+        let original = Data(#"{"version":\#(version),"snippets":\#(snippets),"futureField":"keep me"}"#.utf8)
         try original.write(to: file.url)
 
-        #expect(throws: (any Error).self) { try file.read() }
-        #expect(throws: (any Error).self) { try file.load(now: 1) }
+        #expect(throws: StorageError.unsupportedStorageVersion(99)) { try file.read() }
+        #expect(throws: StorageError.unsupportedStorageVersion(99)) { try file.load(now: 1) }
 
         #expect(try Data(contentsOf: file.url) == original)
         #expect(try FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path) == ["data.json"])

@@ -420,6 +420,57 @@ private func choicePlaceholder(
         #expect(try #require(submitted)["x"] == "")
     }
 
+    @Test func disabledConditionalDoesNotRequireItsFields() throws {
+        var m = model("Hello{{#if signature}} — {{name}}{{/if}}")
+        #expect(m.navigationTitle(snippetTitle: "T") == "Fill Placeholders (0/0): T")
+        #expect(m.prepareSubmission()?.content == "Hello")
+
+        m.setEnabled("signature", true)
+        #expect(m.prepareSubmission() == nil)
+        #expect(m.errors == ["name": "This field is required"])
+        m.setEnabled("signature", false)
+        #expect(m.errors.isEmpty)
+        #expect(m.prepareSubmission()?.content == "Hello")
+
+        m.setEnabled("signature", true)
+        m.setCustomValue("name", "Ada")
+        #expect(m.prepareSubmission()?.content == "Hello — Ada")
+    }
+
+    @Test func onlySelectedNestedBranchRequiresValues() {
+        var m = model("{{#if formal}}Dear {{name}}{{#else}}Hi{{#if extra}} {{nickname}}{{/if}}{{/if}}")
+        #expect(m.prepareSubmission()?.content == "Hi")
+        m.setEnabled("extra", true)
+        #expect(m.prepareSubmission() == nil)
+        #expect(m.errors.keys.sorted() == ["nickname"])
+        m.setEnabled("formal", true)
+        #expect(m.prepareSubmission() == nil)
+        #expect(m.errors.keys.sorted() == ["name"])
+    }
+
+    @Test func unconditionalOccurrenceStillRequiresTheField() {
+        var m = model("{{name}} {{#if signature}}{{name}}{{/if}}")
+        #expect(m.prepareSubmission() == nil)
+        #expect(m.errors.keys.sorted() == ["name"])
+    }
+
+    @Test func changingValueGuardClearsInactiveErrors() {
+        var m = model("{{mode|}}{{#if mode}}{{detail}}{{/if}}")
+        m.setCustomValue("mode", "yes")
+        #expect(m.submit() == nil)
+        #expect(m.errors.keys.sorted() == ["detail"])
+        m.setCustomValue("mode", "")
+        #expect(m.errors.isEmpty)
+        #expect(m.prepareSubmission()?.content == "")
+    }
+
+    @Test func activeReferenceKeepsAuthoredChoiceRequirements() {
+        var m = model("{{#if choices}}{{tone[A|B]}}{{/if}}{{tone|fallback}}")
+        m.setCustomValue("tone", "")
+        #expect(m.prepareSubmission() == nil)
+        #expect(m.errors.keys.sorted() == ["tone"])
+    }
+
     @Test func useDefaultsResetsOptionalFieldsOnly() {
         var m = model("{{req}} {{opt|dflt}} {{(:w:)}} {{tone[A|B]|B}} {{#if g}}G{{/if}}",
             history: ["req": [value("r", daysAgo: 1)], "opt": [value("dflt", daysAgo: 2), value("h", daysAgo: 1)]])

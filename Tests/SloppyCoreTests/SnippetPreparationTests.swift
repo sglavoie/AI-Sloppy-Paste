@@ -138,4 +138,31 @@ import Testing
         #expect(prepared.content == "Ada — Thanks!")
         #expect(prepared == form.prepareSubmission())
     }
+
+    @Test func lastValuesDoesNotRequireHistoryForInactiveBranches() throws {
+        let s = snippet("Hi {{name}}{{#if signature}} — {{signatureText}}{{/if}}")
+        let values = history(["name": "Ada"])
+        #expect(SnippetPreparation.lastValuesAvailability(for: s, history: values, now: Self.now) == .available)
+        let prepared = try SnippetPreparation.prepareWithLastValues(s, history: values, now: Self.now)
+        #expect(prepared.content == "Hi Ada")
+    }
+
+    @Test func lastValuesRequiresHistoryForTheSelectedElseBranch() throws {
+        let s = snippet("{{#if formal}}{{name}}{{#else}}{{nickname}}{{/if}}")
+        #expect(SnippetPreparation.lastValuesAvailability(for: s, history: history(["name": "Ada"]), now: Self.now)
+            == .unavailable)
+        #expect(throws: MissingPlaceholderHistoryError(placeholderKey: "nickname")) {
+            try SnippetPreparation.prepareWithLastValues(s, history: history(["name": "Ada"]), now: Self.now)
+        }
+        let prepared = try SnippetPreparation.prepareWithLastValues(s, history: history(["nickname": "A"]), now: Self.now)
+        #expect(prepared.content == "A")
+    }
+
+    @Test func defaultOnGuardStillRequiresHistory() {
+        let s = snippet("{{#if +signature}}{{name}}{{/if}}")
+        #expect(SnippetPreparation.lastValuesAvailability(for: s, history: [:], now: Self.now) == .unavailable)
+        #expect(throws: MissingPlaceholderHistoryError(placeholderKey: "name")) {
+            try SnippetPreparation.prepareWithLastValues(s, history: [:], now: Self.now)
+        }
+    }
 }

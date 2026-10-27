@@ -45,7 +45,7 @@ public enum SnippetPreparation {
     public enum LastValuesAvailability: Sendable, Hashable {
         /// The snippet has no required user placeholders, so the action is hidden.
         case notApplicable
-        /// Some required key has no history yet.
+        /// Some required key in the selected branches has no history yet.
         case unavailable
         case available
     }
@@ -99,18 +99,32 @@ public enum SnippetPreparation {
             .map(\.key)
     }
 
+    /// Keep canonical requirements, but only for value occurrences in the
+    /// selected branches. A declaration in another branch can still own a
+    /// visible reference's required/optional status and authored choices.
+    static func activeRequiredPlaceholders(
+        in content: String, placeholders: [Placeholder], values: [String: String]
+    ) -> [Placeholder] {
+        let selected = ConditionalBlocks.process(content, values: values)
+        let keys = Set(PlaceholderSyntaxParser.parse(selected).occurrences.map(\.key))
+        return placeholders.filter { $0.isRequired && keys.contains($0.key) }
+    }
+
     public static func lastValuesAvailability(
         for snippet: Snippet,
         history: PlaceholderHistory,
         now: Int64,
         timeZone: TimeZone = .current
     ) -> LastValuesAvailability {
-        let required = requiredUserKeys(in: snippet.content, now: now, timeZone: timeZone)
-        if required.isEmpty { return .notApplicable }
-        return required.allSatisfy { hasLastUsedValue(history, key: $0) } ? .available : .unavailable
+        let processed = SystemPlaceholders.process(snippet.content, now: now, timeZone: timeZone)
+        let placeholders = PlaceholderSyntaxParser.extractPlaceholders(processed)
+        guard placeholders.contains(where: \.isRequired) else { return .notApplicable }
+        let values = lastValues(placeholders, history: history)
+        let required = activeRequiredPlaceholders(in: processed, placeholders: placeholders, values: values)
+        return required.allSatisfy { values[$0.key] != nil } ? .available : .unavailable
     }
 
-    /// IDs of snippets with required user keys that all have a last-used value.
+    /// IDs of snippets whose required keys in the selected branches all have history.
     public static func historyAvailability(
         for snippets: [Snippet],
         history: PlaceholderHistory,
@@ -127,6 +141,7 @@ public enum SnippetPreparation {
 
     /// "Paste with Last Values": required keys take their last-used value and
     /// optional keys and guard-only toggles take their authored defaults.
+    /// Missing history only blocks fields in the selected conditional branches.
     public static func prepareWithLastValues(
         _ snippet: Snippet,
         history: PlaceholderHistory,
@@ -135,13 +150,20 @@ public enum SnippetPreparation {
     ) throws(MissingPlaceholderHistoryError) -> PreparedSnippet {
         let processed = SystemPlaceholders.process(snippet.content, now: now, timeZone: timeZone)
         let placeholders = PlaceholderSyntaxParser.extractPlaceholders(processed)
+        let finalValues = lastValues(placeholders, history: history)
+        for placeholder in activeRequiredPlaceholders(in: processed, placeholders: placeholders, values: finalValues)
+        where finalValues[placeholder.key] == nil {
+            throw MissingPlaceholderHistoryError(placeholderKey: placeholder.key)
+        }
+
+        return submission(content: processed, placeholders: placeholders, finalValues: finalValues)
+    }
+
+    private static func lastValues(_ placeholders: [Placeholder], history: PlaceholderHistory) -> [String: String] {
         var finalValues: [String: String] = [:]
 
         for placeholder in placeholders where placeholder.isRequired {
-            guard let lastValue = PlaceholderHistoryRanking.lastUsedValue(history[placeholder.key] ?? []) else {
-                throw MissingPlaceholderHistoryError(placeholderKey: placeholder.key)
-            }
-            finalValues[placeholder.key] = lastValue
+            finalValues[placeholder.key] = PlaceholderHistoryRanking.lastUsedValue(history[placeholder.key] ?? [])
         }
         for placeholder in placeholders where !placeholder.isRequired && finalValues[placeholder.key] == nil {
             if placeholder.isGuardOnly {
@@ -151,14 +173,6 @@ public enum SnippetPreparation {
             }
         }
 
-        let afterBlocks = ConditionalBlocks.process(processed, values: finalValues)
-        return PreparedSnippet(
-            content: PlaceholderRenderer.replacePlaceholders(afterBlocks, values: finalValues, placeholders: placeholders),
-            placeholderValues: trackedValues(placeholders, finalValues: finalValues)
-        )
-    }
-
-    private static func hasLastUsedValue(_ history: PlaceholderHistory, key: String) -> Bool {
-        !(PlaceholderHistoryRanking.lastUsedValue(history[key] ?? []) ?? "").isEmpty
+        return finalValues
     }
 }

@@ -82,7 +82,7 @@ struct PlaceholderFormView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("Required fields (*) must be filled. Unchecked wrapper fields are left out; "
+                    Text("Required fields (*) must be filled when their conditional branch is included. Unchecked wrapper fields are left out; "
                         + "conditional checkboxes show or hide whole blocks.")
                         .font(.caption)
                         .foregroundStyle(.secondary)

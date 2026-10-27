@@ -116,18 +116,25 @@ public struct PlaceholderFormModel: Sendable, Hashable {
     public var orderedPlaceholders: [Placeholder] { requiredPlaceholders + optionalPlaceholders }
     public var hasBothSections: Bool { !requiredPlaceholders.isEmpty && !optionalPlaceholders.isEmpty }
 
+    /// Required fields that actually contribute to the selected conditional branches.
+    public var activeRequiredPlaceholders: [Placeholder] {
+        SnippetPreparation.activeRequiredPlaceholders(
+            in: snippetContent, placeholders: placeholders, values: previewValues)
+    }
+
     public var filledRequiredCount: Int {
-        requiredPlaceholders.filter { !(formValues[$0.key] ?? "").trimmed.isEmpty }.count
+        activeRequiredPlaceholders.filter { !(formValues[$0.key] ?? "").trimmed.isEmpty }.count
     }
 
     public func navigationTitle(snippetTitle: String) -> String {
-        "Fill Placeholders (\(filledRequiredCount)/\(requiredPlaceholders.count)): \(snippetTitle)"
+        "Fill Placeholders (\(filledRequiredCount)/\(activeRequiredPlaceholders.count)): \(snippetTitle)"
     }
 
     /// A banner describing history pre-fill, or nil when nothing was pre-filled.
     public func summary(mode: PlaceholderFormMode) -> String? {
-        let requiredCount = requiredPlaceholders.count
-        let prefilledCount = requiredPlaceholders.count { prefilledKeys.contains($0.key) }
+        let required = activeRequiredPlaceholders
+        let requiredCount = required.count
+        let prefilledCount = required.count { prefilledKeys.contains($0.key) }
         let fieldWord = requiredCount == 1 ? "field" : "fields"
         if requiredCount > 0 && prefilledCount == requiredCount {
             return "All \(requiredCount) \(fieldWord) pre-filled from history — submit to \(mode.verb)."
@@ -213,12 +220,14 @@ public struct PlaceholderFormModel: Sendable, Hashable {
 
     public mutating func setEnabled(_ key: String, _ enabled: Bool) {
         enabledOptionals[key] = enabled
+        clearInactiveErrors()
     }
 
     public mutating func setCustomValue(_ key: String, _ value: String) {
         customValues[key] = value
         formValues[key] = value
         errors[key] = nil
+        clearInactiveErrors()
     }
 
     /// Applies a dropdown pick; an unknown option ID is ignored.
@@ -246,6 +255,7 @@ public struct PlaceholderFormModel: Sendable, Hashable {
             dropdownSelections[key] = optionID
         }
         errors[key] = nil
+        clearInactiveErrors()
     }
 
     /// Resets every optional, non-guard field to its authored default (⌘D).
@@ -275,6 +285,7 @@ public struct PlaceholderFormModel: Sendable, Hashable {
                 enabledOptionals[key] = !defaultValue.isEmpty
             }
         }
+        clearInactiveErrors()
     }
 
     // MARK: Output
@@ -290,16 +301,16 @@ public struct PlaceholderFormModel: Sendable, Hashable {
         return PlaceholderRenderer.replacePlaceholders(afterBlocks, values: previewValues, placeholders: placeholders)
     }
 
-    /// Validates required fields (after blanking disabled toggles) and returns
+    /// Validates required fields in selected branches and returns
     /// the final values, or nil after storing field errors.
     public mutating func submit() -> [String: String]? {
-        let values = disabledBlanked(formValues)
-        let newErrors = PlaceholderFormChoices.requiredErrors(placeholders, finalValues: values)
+        let values = previewValues
+        let newErrors = PlaceholderFormChoices.requiredErrors(activeRequiredPlaceholders, finalValues: values)
+        errors = newErrors
         guard newErrors.isEmpty else {
-            errors = newErrors
             return nil
         }
-        return guardMapped(values)
+        return values
     }
 
     /// Validates and renders; nil when a required field is blank.
@@ -313,6 +324,12 @@ public struct PlaceholderFormModel: Sendable, Hashable {
         var result = values
         for (key, enabled) in enabledOptionals where !enabled { result[key] = "" }
         return result
+    }
+
+    private mutating func clearInactiveErrors() {
+        guard !errors.isEmpty else { return }
+        let activeKeys = Set(activeRequiredPlaceholders.map(\.key))
+        errors = errors.filter { activeKeys.contains($0.key) }
     }
 
     /// Prefix every value, including values that already contain this prefix,

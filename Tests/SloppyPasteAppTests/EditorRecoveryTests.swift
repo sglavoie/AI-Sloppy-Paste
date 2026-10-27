@@ -4,6 +4,37 @@ import SloppyCore
 @testable import SloppyPasteApp
 
 @Suite @MainActor struct EditorRecoveryTests {
+    @Test func recoveredDraftCannotOverwriteExternalEdits() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let draftURL = directory.appending(path: "drafts.json")
+        let snippet = Snippet(id: "a", title: "Original", content: "Saved", createdAt: 1, updatedAt: 1)
+        try file.save(StorageData(snippets: [snippet]))
+        let first = Navigator(draftURL: draftURL)
+        let session = first.startEditor(.edit(snippetID: snippet.id), draft: SnippetDraft(snippet: snippet))
+        session.draft.content = "Unfinished local edit"
+
+        let restarted = Navigator(draftURL: draftURL)
+        let recovered = try #require(restarted.pendingEditor)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+        var external = snippet
+        external.content = "External edit made while draft was closed"
+        // Keep updatedAt unchanged: compare the edited fields, not timestamps.
+        try file.save(StorageData(snippets: [external]))
+        let savedBytes = try Data(contentsOf: file.url)
+
+        #expect(throws: SnippetDraftError.conflict) {
+            try store.mutate { repository, now in
+                try recovered.draft.update(id: snippet.id, in: &repository, now: now, original: recovered.original)
+            }
+        }
+        #expect(try Data(contentsOf: file.url) == savedBytes)
+        #expect(restarted.pendingEditor === recovered)
+        #expect(Navigator(draftURL: draftURL).pendingEditor?.draft.content == "Unfinished local edit")
+    }
+
     @Test func draftsSurviveRestartAndDisappearAfterSaveOrDiscard() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

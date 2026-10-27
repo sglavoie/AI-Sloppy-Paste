@@ -45,7 +45,7 @@ public enum SearchFilter {
     }
 
     static func hasTag(_ snippet: Snippet, _ tag: String) -> Bool {
-        snippet.tags.contains { $0 == tag || TagHierarchy.isChildOf($0, tag) }
+        snippet.tags.contains { TagHierarchy.matches($0, filter: tag) }
     }
 
     static func has(_ snippet: Snippet, _ filter: BooleanFilter) -> Bool {

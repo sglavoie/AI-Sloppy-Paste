@@ -38,6 +38,13 @@ import Testing
         #expect(entries == [.allTags, .untagged(count: 1), .tag("old", count: 1)])
     }
 
+    @Test func countsIncludeMixedCaseExactTagsPreservedInStorage() throws {
+        let stored = StorageData(snippets: [Self.snippet("1", ["Work"]), Self.snippet("2", ["WORK/Projects"])])
+        let loaded = try StorageMigrations.migrate(json: StorageCoding.encode(stored)).data
+        let entries = C.entries(snippets: loaded.snippets, showArchived: false, selectedTag: nil, searchText: "")
+        #expect(entries == [.allTags, .tag("work", count: 2), .tag("work/projects", count: 1)])
+    }
+
     @Test func filtersBySubstringOfPath() {
         let entries = C.entries(snippets: Self.snippets, showArchived: false, selectedTag: nil, searchText: " WO ")
         #expect(entries.map(\.id) == ["tag:homework", "tag:work", "tag:work/projects", "tag:work/projects/client-a"])

@@ -96,9 +96,17 @@ public struct SnippetDraft: Sendable, Hashable, Codable {
     }
 
     /// Writes the draft over an existing snippet, keeping its usage and flags.
+    /// Pass the editor's original draft to reject changes to editable fields
+    /// made since the editor opened, including while its draft was in recovery.
     @discardableResult
-    public func update(id: String, in repository: inout SnippetRepository, now: Int64) throws -> Snippet {
+    public func update(
+        id: String, in repository: inout SnippetRepository, now: Int64, original: SnippetDraft? = nil
+    ) throws -> Snippet {
         try validate()
+        guard let stored = repository.snippet(id: id) else { throw StorageError.snippetNotFound }
+        if let original, SnippetDraft(snippet: stored) != original {
+            throw SnippetDraftError.conflict
+        }
         return try repository.updateSnippet(id: id, now: now) { snippet in
             snippet.title = trimmed(title)
             snippet.content = content
@@ -120,10 +128,13 @@ public struct SnippetDraft: Sendable, Hashable, Codable {
 
 public enum SnippetDraftError: Error, Sendable, Hashable, CustomStringConvertible {
     case invalid(field: SnippetDraft.Field, message: String)
+    case conflict
 
     public var description: String {
         switch self {
         case .invalid(_, let message): message
+        case .conflict:
+            "This snippet changed since the draft was opened. No changes were saved; your draft is preserved. Copy your edits, then discard the draft and reopen the snippet to review the latest version."
         }
     }
 }

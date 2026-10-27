@@ -18,6 +18,17 @@ import Testing
 
     // MARK: Tags
 
+    @Test func tagOperatorsNormalizeStoredTagsAndRespectPathBoundaries() {
+        let snippets = [
+            Self.snippet("exact", tags: [" Work "]),
+            Self.snippet("child", tags: ["WORK/Projects"]),
+            Self.snippet("other", tags: ["workshop"]),
+        ]
+        #expect(Self.ids(snippets, QueryParser.parse("tag:WORK")) == ["exact", "child"])
+        #expect(Self.ids(snippets, QueryParser.parse("not:tag:work")) == ["other"])
+        #expect(TagHierarchy.filterSnippets(snippets, byTag: " Work ").map(\.id) == ["exact", "child"])
+    }
+
     @Test func requiredTag() {
         let snippets = [Self.snippet("1", tags: ["work"]), Self.snippet("2", tags: ["personal"])]
         #expect(Self.ids(snippets, ParsedQuery(tags: ["work"])) == ["1"])

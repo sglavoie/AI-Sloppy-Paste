@@ -331,6 +331,7 @@ struct SnippetEditorView: View {
     }
 
     private func save() {
+        guard let session else { return }
         if let field = draft.firstErrorField {
             showAllErrors = true
             focusedField = field
@@ -342,7 +343,9 @@ struct SnippetEditorView: View {
             case .new, .fromClipboard:
                 try store.mutate { repository, now in try draft.create(in: &repository, now: now) }
             case .edit(let id):
-                try store.mutate { repository, now in try draft.update(id: id, in: &repository, now: now) }
+                try store.mutate { repository, now in
+                    try draft.update(id: id, in: &repository, now: now, original: session.original)
+                }
             }
         } catch {
             let title = if case .edit = mode { "Failed to update snippet" } else { "Failed to create snippet" }

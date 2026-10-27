@@ -112,6 +112,43 @@ import Testing
         #expect(!Validation.validateContent(padded).isValid)
     }
 
+    @Test(arguments: SnippetDraft.Field.allCases)
+    func updateRejectsExternalChangesToEveryEditableField(field: SnippetDraft.Field) throws {
+        var repository = SnippetRepository()
+        let snippet = repository.addSnippet(title: "Original", content: "Saved", now: 1, id: "s")
+        let original = SnippetDraft(snippet: snippet)
+        var draft = original
+        draft.content = "Local edit"
+        try repository.updateSnippet(id: "s", now: 1) { stored in
+            switch field {
+            case .title: stored.title = "External title"
+            case .content: stored.content = "External content"
+            case .description: stored.description = "External description"
+            case .tags: stored.tags = ["external"]
+            }
+        }
+        let before = repository.data
+        #expect(throws: SnippetDraftError.conflict) {
+            try draft.update(id: "s", in: &repository, now: 3, original: original)
+        }
+        #expect(repository.data == before)
+    }
+
+    @Test func originalCheckAllowsUsageAndFlagChanges() throws {
+        var repository = SnippetRepository()
+        let snippet = repository.addSnippet(title: "Original", content: "Saved", now: 1, id: "s")
+        let original = SnippetDraft(snippet: snippet)
+        var draft = original
+        draft.content = "Local edit"
+        try repository.recordUse(id: "s", now: 2)
+        try repository.toggle(\.isPinned, id: "s", now: 2)
+        let saved = try draft.update(id: "s", in: &repository, now: 3, original: original)
+        #expect(saved.content == "Local edit")
+        #expect(saved.useCount == 1)
+        #expect(saved.lastUsedAt == 2)
+        #expect(saved.isPinned)
+    }
+
     @Test func syntaxHelpersSelectTheirKey() {
         #expect(PlaceholderSyntaxHelper.all.map(\.key) == Array("1234567"))
         for helper in PlaceholderSyntaxHelper.all {

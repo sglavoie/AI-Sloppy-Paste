@@ -84,6 +84,14 @@ public enum TagHierarchy {
         return normalizedTag.hasPrefix(normalizedParent + "/")
     }
 
+    /// Matches an exact tag or a descendant, normalizing both sides. Current
+    /// storage documents may retain mixed-case tags from external edits.
+    public static func matches(_ tag: String, filter: String) -> Bool {
+        let normalizedTag = TagNormalization.normalizeTag(tag)
+        let normalizedFilter = TagNormalization.normalizeTag(filter)
+        return normalizedTag == normalizedFilter || normalizedTag.hasPrefix(normalizedFilter + "/")
+    }
+
     /// Whether `tag` is exactly one level below `parent`.
     public static func isDirectChildOf(_ tag: String, _ parent: String) -> Bool {
         let normalizedTag = TagNormalization.normalizeTag(tag)
@@ -159,6 +167,6 @@ public enum TagHierarchy {
         if tag == untaggedSentinel {
             return snippets.filter { $0.tags.isEmpty }
         }
-        return snippets.filter { $0.tags.contains { $0 == tag || isChildOf($0, tag) } }
+        return snippets.filter { $0.tags.contains { matches($0, filter: tag) } }
     }
 }

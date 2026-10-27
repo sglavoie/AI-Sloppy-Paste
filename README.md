@@ -58,6 +58,11 @@ If the recovery file cannot be read, it is left untouched and the picker shows
 a warning; new drafts stay in memory until the file is repaired and the app
 restarted. A failed draft write also shows a warning to keep the app open.
 
+If a snippet's title, content, description, or tags changed while its draft was
+open or in recovery, saving stops and preserves both versions. Copy your draft
+edits before discarding it, then reopen the snippet to review the latest version.
+Usage counts and bookmark, archive, or pin changes do not block a draft save.
+
 ⇧⌘D duplicates the selected snippet and opens the copy for editing. Snippet
 content is saved exactly as entered, including indentation and surrounding
 blank lines; titles and descriptions are trimmed. New Snippet from Clipboard

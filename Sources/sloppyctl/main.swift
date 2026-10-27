@@ -136,10 +136,13 @@ func printStats(_ stats: Stats, json: Bool) throws {
 func renderValues(_ assignments: [String], placeholders: [Placeholder]) throws -> [String: String] {
     var values: [String: String] = [:]
     for assignment in assignments {
-        guard let equals = assignment.firstIndex(of: "=") else {
+        // A combining mark at the start of a value can share a Character with
+        // '=', but the delimiter is still the same individual Unicode scalar.
+        let scalars = assignment.unicodeScalars
+        guard let equals = scalars.firstIndex(of: "=") else {
             throw CommandError(description: "expected key=value, got \(assignment)")
         }
-        values[String(assignment[..<equals])] = String(assignment[assignment.index(after: equals)...])
+        values[String(scalars[..<equals])] = String(scalars[scalars.index(after: equals)...])
     }
     for placeholder in placeholders where values[placeholder.key] == nil {
         if placeholder.isGuardOnly {

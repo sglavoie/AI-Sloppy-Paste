@@ -15,6 +15,29 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 }
 
 @Suite struct ProcessConditionalBlocksTests {
+    @Test(arguments: ["Include {name}?", "Include }?", "Include {{name}}?"])
+    func bracesInLabelsStayOutOfRenderedContent(label: String) throws {
+        let text = "{{#if +show \"\(label)\"}}Hello{{#else}}Hidden{{/if}}"
+        let placeholders = extract(text)
+        #expect(placeholders.map(\.key) == ["show"])
+        #expect(placeholders.first?.label == label)
+        #expect(bodies(text, "show") == [.init(ifBody: "Hello", elseBody: "Hidden")])
+        #expect(process(text, ["show": "true"]) == "Hello")
+        #expect(process(text, ["show": ""]) == "Hidden")
+
+        var form = PlaceholderFormModel(
+            snippetContent: text, placeholders: placeholders, history: [:], now: 0)
+        #expect(form.previewContent == "Hello")
+        #expect(form.prepareSubmission()?.content == "Hello")
+        form.setEnabled("show", false)
+        #expect(form.prepareSubmission()?.content == "Hidden")
+
+        let nested = "{{#if outer}}\(text){{#else}}Outside{{/if}}"
+        #expect(process(nested, ["outer": "true", "show": "true"]) == "Hello")
+        #expect(process(nested, ["outer": "true", "show": ""]) == "Hidden")
+        #expect(process(nested, ["outer": "", "show": "true"]) == "Outside")
+    }
+
     @Test(arguments: ["\n", "\r\n", "\r"])
     func elseClosingTagOnItsOwnLineDoesNotLeak(newline: String) {
         let text = "{{#if show}}\(newline)Yes\(newline){{#else}}\(newline)No\(newline){{/else}}\(newline)  {{/if}}"

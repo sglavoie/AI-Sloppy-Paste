@@ -49,6 +49,12 @@ import Testing
         #expect(preview(#"{{#if +k "Add a note"}}Note{{/if}}"#) == "⟨if k: Note⟩")
     }
 
+    @Test(arguments: ["Include {name}?", "Include }?", "Include {{name}}?"])
+    func bracesInConditionalLabelsAreHidden(label: String) {
+        let content = "{{#if +show \"\(label)\"}}Hello{{#else}}Hidden{{/if}}"
+        #expect(preview(content) == "⟨if show: Hello | else: Hidden⟩")
+    }
+
     @Test func systemPlaceholdersBeforeUserPlaceholders() {
         let result = preview("On {{DATE}}, greet {{name}}")
         #expect(result == "On ⟨DATE → 2024-03-15⟩, greet ⟨name⟩")

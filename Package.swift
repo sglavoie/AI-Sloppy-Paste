@@ -30,6 +30,16 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "SloppyCTLTests",
+            dependencies: ["sloppyctl"],
+            swiftSettings: [
+                .unsafeFlags([
+                    "-plugin-path",
+                    "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+                ])
+            ]
+        ),
+        .testTarget(
             name: "SloppyCoreTests",
             dependencies: ["SloppyCore"],
             swiftSettings: [

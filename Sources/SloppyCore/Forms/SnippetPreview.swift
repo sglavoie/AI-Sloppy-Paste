@@ -30,7 +30,7 @@ public enum SnippetPreview {
     private static func previewConditionalBlocks(_ content: String) -> String {
         // Annotate innermost blocks first so each closing tag and else branch
         // belongs to its own condition. Each pass removes at least one block.
-        let block = /\{\{#if\s+([^}]+)\}\}((?:(?!\{\{#if\s)[\s\S])*?)\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)
+        let block = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}((?:(?!\{\{#if\s)[\s\S])*?)\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)
         var result = content
         while result.contains(block) {
             result = result.replacing(block) { match in

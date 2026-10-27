@@ -9,6 +9,8 @@ public enum CopyOnlyReason: Sendable, Hashable {
     /// The app that was frontmost when the picker opened is gone or no longer
     /// in front, so ⌘V would land somewhere else.
     case targetUnavailable
+    /// Another write replaced the clipboard during the paste delay.
+    case clipboardChanged
 }
 
 /// What happened to a paste or copy action, and the HUD text that reports it.
@@ -38,6 +40,8 @@ public enum PasteOutcome: Sendable, Hashable {
             ("Copied to Clipboard", "Secure input is on, so Sloppy Paste cannot paste. Press ⌘V to paste.")
         case .copiedOnly(.targetUnavailable):
             ("Copied to Clipboard", "The previous app is no longer in front, so Sloppy Paste did not paste. Press ⌘V to paste.")
+        case .copiedOnly(.clipboardChanged):
+            ("Paste Cancelled", "The clipboard changed before Sloppy Paste could paste. Select the snippet again to retry.")
         }
     }
 }

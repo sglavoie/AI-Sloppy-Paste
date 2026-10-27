@@ -23,11 +23,17 @@ final class Paster {
 
     /// Copies `text`, then pastes it into `target` unless Accessibility is
     /// missing, Secure Input is on, or `target` is no longer live and
-    /// frontmost when ⌘V would be posted. The picker panel must already be hidden.
+    /// frontmost when ⌘V would be posted, or another copy replaced the clipboard.
+    /// The picker panel must already be hidden.
     func paste(_ text: String, into target: NSRunningApplication?) async throws -> PasteOutcome {
         let delay = delayMilliseconds
+        var copiedChangeCount: Int?
         let sequence = PasteSequence<NSRunningApplication>(
-            copy: { try Pasteboard.copy($0) },
+            copy: {
+                try Pasteboard.copy($0)
+                copiedChangeCount = NSPasteboard.general.changeCount
+            },
+            isClipboardCurrent: { copiedChangeCount == NSPasteboard.general.changeCount },
             permission: { [accessibility] in
                 accessibility.refresh()
                 return PasteOutcome.decide(

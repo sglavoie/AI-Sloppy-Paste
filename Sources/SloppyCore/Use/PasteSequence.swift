@@ -2,10 +2,12 @@ import Foundation
 
 /// The paste-back steps with every system dependency injected, so the target
 /// checks can be tested without a live session. The clipboard is set first
-/// and kept on every path; ⌘V is posted at most once and never retried.
+/// and never restored; ⌘V is posted at most once and never retried.
 @MainActor
 public struct PasteSequence<Target> {
     public var copy: @MainActor (String) throws -> Void
+    /// Whether the clipboard has remained unchanged since `copy` completed.
+    public var isClipboardCurrent: @MainActor () -> Bool
     /// Accessibility and Secure Input before activation and again after the delay.
     public var permission: @MainActor () -> PasteOutcome
     public var isSecureInputEnabled: @MainActor () -> Bool
@@ -21,6 +23,7 @@ public struct PasteSequence<Target> {
 
     public init(
         copy: @escaping @MainActor (String) throws -> Void,
+        isClipboardCurrent: @escaping @MainActor () -> Bool,
         permission: @escaping @MainActor () -> PasteOutcome,
         isSecureInputEnabled: @escaping @MainActor () -> Bool,
         isLive: @escaping @MainActor (Target) -> Bool,
@@ -30,6 +33,7 @@ public struct PasteSequence<Target> {
         postPasteKey: @escaping @MainActor (Bool) -> Void
     ) {
         self.copy = copy
+        self.isClipboardCurrent = isClipboardCurrent
         self.permission = permission
         self.isSecureInputEnabled = isSecureInputEnabled
         self.isLive = isLive
@@ -59,6 +63,9 @@ public struct PasteSequence<Target> {
         }
         // The target may have quit, or the user switched apps, during the wait.
         guard isLive(target), isFrontmost(target) else { return .copiedOnly(.targetUnavailable) }
+        // Another copy (including another snippet delivery) may have replaced
+        // the contents during the delay. Never paste that replacement text.
+        guard isClipboardCurrent() else { return .copiedOnly(.clipboardChanged) }
 
         postPasteKey(true)
         postPasteKey(false)

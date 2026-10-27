@@ -58,6 +58,7 @@ public struct ParsedQuery: Sendable, Hashable {
 ///
 /// - `tag:work` / `not:tag:personal`: has (or lacks) the tag or a child of it
 /// - `ctx:asl` / `not:ctx:asl`: the title does (or does not) carry the `asl:` context
+/// - tag and context values with spaces can be quoted: `ctx:"dead code"`
 /// - `is:favorite` / `not:archived`: favorite, bookmarked, archived or untagged
 /// - `"exact phrase"`: case-insensitive substring of the title or content
 /// - anything else: fuzzy words
@@ -68,19 +69,31 @@ public enum QueryParser {
         var result = ParsedQuery()
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return result }
 
-        let quoted = /"([^"]+)"/
-        for match in query.matches(of: quoted) {
-            let phrase = String(match.1).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !phrase.isEmpty { result.exactPhrases.append(phrase) }
-        }
-        let remaining = query.replacing(quoted, with: "")
-
-        var fuzzyTokens: [Substring] = []
-        for token in remaining.split(whereSeparator: \.isWhitespace) {
-            if !consume(token, into: &result) { fuzzyTokens.append(token) }
+        // Keep a quoted operator value together, and consume whole phrases
+        // before looking for operators inside them. Unclosed quotes stay fuzzy.
+        let tokens = /(not:tag:|not:ctx:|tag:|ctx:)"((?:\\[\s\S]|[^"\\])*)"|"((?:\\[\s\S]|[^"\\])+)"|\S+/
+            .matchingSemantics(.unicodeScalar)
+        var fuzzyTokens: [String] = []
+        for match in query.matches(of: tokens) {
+            if let operation = match.output.1, let quotedValue = match.output.2 {
+                let value = unescapeQuoted(quotedValue).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !value.isEmpty, consume(Substring(String(operation) + value), into: &result) { continue }
+            } else if let quotedPhrase = match.output.3 {
+                let phrase = unescapeQuoted(quotedPhrase).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !phrase.isEmpty { result.exactPhrases.append(phrase) }
+                continue
+            } else if !match.output.0.contains("\""), consume(match.output.0, into: &result) {
+                continue
+            }
+            fuzzyTokens.append(String(match.output.0))
         }
         result.fuzzyText = fuzzyTokens.joined(separator: " ")
         return result
+    }
+
+    /// Only quotes and backslashes are escaped in query values.
+    private static func unescapeQuoted(_ text: Substring) -> String {
+        String(text).replacing(/\\(["\\])/.matchingSemantics(.unicodeScalar)) { String($0.output.1) }
     }
 
     /// Records an operator token and returns whether it was one. `not:tag:` and

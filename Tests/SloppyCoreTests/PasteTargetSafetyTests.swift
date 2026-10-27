@@ -6,6 +6,16 @@ import Testing
 /// posted only while the saved target is live and frontmost, exactly once.
 @MainActor
 @Suite struct PasteTargetSafetyTests {
+    @Test(arguments: ["Other text", "Hello"])
+    func clipboardReplacedDuringDelayDoesNotPaste(replacement: String) async throws {
+        let system = FakeSystem(frontmost: 1)
+        system.duringWait = { system.replaceClipboard(replacement) }
+        let outcome = try await system.sequence().run("Hello", into: 1)
+        #expect(outcome == .copiedOnly(.clipboardChanged))
+        #expect(system.clipboard == replacement)
+        #expect(system.keyEvents.isEmpty)
+    }
+
     @Test func absentTargetOnlyCopies() async throws {
         let system = FakeSystem(frontmost: 7)
         let outcome = try await system.sequence().run("Hello", into: nil)
@@ -110,6 +120,12 @@ import Testing
         #expect(hud.title == "Copied to Clipboard")
         #expect(hud.message?.contains("no longer in front") == true)
     }
+
+    @Test func changedClipboardHUDDoesNotSuggestPastingTheReplacement() throws {
+        let hud = try #require(PasteOutcome.copiedOnly(.clipboardChanged).hud)
+        #expect(hud.title == "Paste Cancelled")
+        #expect(hud.message?.contains("Select the snippet again") == true)
+    }
 }
 
 /// Targets are process identifiers; `frontmost` is the app that owns focus.
@@ -124,6 +140,7 @@ private final class FakeSystem {
     var duringWait: () -> Void = {}
 
     private(set) var clipboard: String?
+    private(set) var clipboardRevision = 0
     private(set) var activations: [Int32] = []
     private(set) var waits = 0
     private(set) var keyEvents: [Bool] = []
@@ -132,9 +149,19 @@ private final class FakeSystem {
         self.frontmost = frontmost
     }
 
+    func replaceClipboard(_ text: String) {
+        clipboard = text
+        clipboardRevision += 1
+    }
+
     func sequence() -> PasteSequence<Int32> {
-        PasteSequence(
-            copy: { self.clipboard = $0 },
+        var copiedRevision: Int?
+        return PasteSequence(
+            copy: {
+                self.replaceClipboard($0)
+                copiedRevision = self.clipboardRevision
+            },
+            isClipboardCurrent: { copiedRevision == self.clipboardRevision },
             permission: { self.permission },
             isSecureInputEnabled: { self.secureInput },
             isLive: { !self.terminated.contains($0) },

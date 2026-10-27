@@ -167,6 +167,29 @@ import Testing
             exactPhrases: ["api docs"], fuzzyText: "rest endpoint"))
     }
 
+    @Test func quotedOperatorValuesCanMixWithPhrasesAndOtherOperators() {
+        let result = QueryParser.parse(#"ctx:"Dead Code" not:ctx:"Code Review" tag:"work projects" not:tag:"old work" "api docs" is:favorite rest"#)
+        #expect(result == ParsedQuery(
+            tags: ["work projects"], notTags: ["old work"], contexts: ["dead code"],
+            notContexts: ["code review"], isFilters: [.favorite], exactPhrases: ["api docs"], fuzzyText: "rest"))
+    }
+
+    @Test func operatorsInsideQuotedPhrasesStayLiteral() {
+        #expect(QueryParser.parse(#""literal ctx:dead tag:work""#)
+            == ParsedQuery(exactPhrases: ["literal ctx:dead tag:work"]))
+    }
+
+    @Test func quotedValuesHandleEscapesAndKeepLiteralBackslashes() {
+        #expect(QueryParser.parse(#"tag:"say \"hello\"""#).tags == [#"say "hello""#])
+        #expect(QueryParser.parse(#"tag:"work\\projects""#).tags == [#"work\projects"#])
+        #expect(QueryParser.parse(#""C:\temp\file""#).exactPhrases == [#"C:\temp\file"#])
+    }
+
+    @Test(arguments: [#"ctx:"unclosed"#, #"ctx:"""#, #"not:tag:"   ""#])
+    func malformedQuotedOperatorsStayFuzzy(_ query: String) {
+        #expect(QueryParser.parse(query) == ParsedQuery(fuzzyText: query))
+    }
+
     @Test(arguments: ["tag:work    is:favorite", "  tag:work  is:favorite ", "\ttag:work\nis:favorite"])
     func whitespaceBetweenOperators(_ query: String) {
         let result = QueryParser.parse(query)

@@ -72,6 +72,9 @@ When a search or filter has no results, **Clear Search and Filters** returns
 to the unfiltered list without changing your sort preference. The same action
 is available from ⌘K whenever a search or filter is active.
 
+Quote tag or context values that contain spaces, for example `ctx:"dead code"`
+or `not:tag:"old projects"`. Search suggestions add these quotes automatically.
+
 ⌃⌘↵ copies the selected snippet and keeps the picker open. Snippets with
 placeholders open the usual form first; submitting it returns to the list.
 This is also available as **Copy and Keep Open** in the ⌘K action menu.
@@ -303,7 +306,8 @@ the store's migration, backup, and quarantine behavior.
   Pasting. If the target app is slow to take focus, raise the paste delay (60 ms
   by default) in the same section. The app also only copies when the app you
   opened the picker from quit or lost focus before ⌘V, so it never pastes into
-  a different app.
+  a different app. If another copy changes the clipboard during the delay,
+  the paste is cancelled; select the snippet again to retry.
 - **Accessibility is granted but ignored after a rebuild.** Compare
   `just show-dr` with an earlier build. Then run the `tccutil reset` command
   above and grant the permission again.

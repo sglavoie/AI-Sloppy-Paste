@@ -135,6 +135,19 @@ import Testing
         #expect(completed.rows.map(\.id) == ["a"])
     }
 
+    @Test(arguments: ["ctx:", "not:ctx:", "tag:", "not:tag:", "not:"])
+    func multiwordSuggestionsMatchTheSelectedValue(operation: String) throws {
+        let snippets = [
+            Self.snippet("a", title: "Dead Code: Remove unused functions", tags: ["dead code"]),
+            Self.snippet("b", title: "Other", tags: ["other"]),
+        ]
+        let partial = PickerListModel.build(snippets, query: operation, now: Self.now)
+        let completion = try #require(partial.suggestions.first { $0.title.contains("dead code") }?.completion)
+        let completed = PickerListModel.build(snippets, query: completion, now: Self.now)
+        #expect(completed.suggestions.isEmpty)
+        #expect(completed.rows.map(\.id) == (operation.hasPrefix("not:") ? ["b"] : ["a"]))
+    }
+
     @Test(arguments: [
         ("plain", 0),
         ("Hi {{name}} on {{DATE}}", 1),

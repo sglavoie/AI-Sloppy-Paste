@@ -192,6 +192,15 @@ import Testing
 
 /// Ports the useSearchSuggestions branches (no TS test file exists).
 @Suite struct SearchSuggestionsTests {
+    @Test(arguments: ["two words", #"say "hello""#, #"5" monitor"#, #"work\projects"#])
+    func importedTagSuggestionsRoundTrip(tag: String) throws {
+        let item = try #require(SearchSuggestions.suggestions(for: "tag:", allTags: [tag]).first)
+        #expect(QueryParser.parse(item.completion) == ParsedQuery(tags: [tag]))
+        let next = try #require(SearchSuggestions.suggestions(
+            for: item.completion + "ctx:", allTags: [tag], allContexts: ["dead code"]).first)
+        #expect(QueryParser.parse(next.completion) == ParsedQuery(tags: [tag], contexts: ["dead code"]))
+    }
+
     static let tags = ["work", "personal", "a", "b", "c"]
     static let contexts = ["asl", "refactor"]
 

@@ -39,7 +39,8 @@ public enum SearchSuggestions {
         let prefix = String(trimmed[..<start])
         let token = String(trimmed[start...])
         // Operators inside quoted phrases are literal search text.
-        guard prefix.filter({ $0 == "\"" }).count.isMultiple(of: 2), !token.contains("\"") else { return [] }
+        let unescapedPrefix = prefix.replacing(/\\[\s\S]/.matchingSemantics(.unicodeScalar), with: "")
+        guard unescapedPrefix.filter({ $0 == "\"" }).count.isMultiple(of: 2), !token.contains("\"") else { return [] }
         // Check the compound operators before the generic `not:` branch.
         guard let operation = ["not:ctx:", "not:tag:", "ctx:", "tag:", "is:", "not:"]
             .first(where: { token.hasPrefix($0) }) else { return [] }
@@ -67,7 +68,21 @@ public enum SearchSuggestions {
         guard !candidates.contains(where: { $0.value.lowercased() == value }) else { return [] }
         return candidates.filter { $0.value.lowercased().hasPrefix(value) }.prefix(limit).map {
             let title = operation + $0.value
-            return SearchSuggestion(title: title, subtitle: $0.subtitle, completion: prefix + title + " ")
+            let completedValue: String
+            if operation == "not:", $0.value.hasPrefix("tag:") {
+                completedValue = "tag:" + queryValue(String($0.value.dropFirst(4)))
+            } else {
+                completedValue = queryValue($0.value)
+            }
+            return SearchSuggestion(
+                title: title, subtitle: $0.subtitle, completion: prefix + operation + completedValue + " ")
         }
+    }
+
+    private static func queryValue(_ value: String) -> String {
+        guard value.contains(where: { $0.isWhitespace || $0 == "\"" || $0 == "\\" }) else { return value }
+        let escaped = value.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"" + escaped + "\""
     }
 }

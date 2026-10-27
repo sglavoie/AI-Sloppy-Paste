@@ -91,8 +91,12 @@ public struct PlaceholderFormModel: Sendable, Hashable {
             if ranked.isEmpty {
                 useCustomInput[key] = true
             } else {
-                dropdownSelections[key] = initial.isEmpty ? PlaceholderFormChoices.customValueMarker : initial
-                useCustomInput[key] = initial.isEmpty
+                let useSuggestion = !initial.isEmpty && ranked.contains(initial)
+                dropdownSelections[key] = useSuggestion ? initial : PlaceholderFormChoices.customValueMarker
+                useCustomInput[key] = !useSuggestion
+                // Recency chooses the prefill, but frequency can push that
+                // value outside the capped menu. Keep it visible as custom text.
+                if !useSuggestion { customValues[key] = initial }
             }
 
             if !placeholder.isRequired && PlaceholderFormChoices.isWrapper(placeholder) {

@@ -126,7 +126,7 @@ public enum SnippetPreparation {
     }
 
     /// "Paste with Last Values": required keys take their last-used value and
-    /// optional keys with a default take the default.
+    /// optional keys and guard-only toggles take their authored defaults.
     public static func prepareWithLastValues(
         _ snippet: Snippet,
         history: PlaceholderHistory,
@@ -145,7 +145,11 @@ public enum SnippetPreparation {
             finalValues[placeholder.key] = lastValue
         }
         for placeholder in placeholders where !placeholder.isRequired && finalValues[placeholder.key] == nil {
-            if let defaultValue = placeholder.defaultValue { finalValues[placeholder.key] = defaultValue }
+            if placeholder.isGuardOnly {
+                finalValues[placeholder.key] = placeholder.defaultOn ? "true" : ""
+            } else if let defaultValue = placeholder.defaultValue {
+                finalValues[placeholder.key] = defaultValue
+            }
         }
 
         let userPlaceholders = placeholders.filter { !systemKeys.contains($0.key) }

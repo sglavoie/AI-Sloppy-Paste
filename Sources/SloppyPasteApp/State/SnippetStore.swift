@@ -54,7 +54,9 @@ final class SnippetStore {
     func startWatching() {
         guard watcher == nil else { return }
         watcher = FileWatcher(url: file.url) { [weak self] in
-            self?.reloadIfChanged()
+            // A write notification is sufficient evidence of a change even
+            // when an editor or sync tool preserves the modification date.
+            self?.load()
         }
     }
 
@@ -64,10 +66,11 @@ final class SnippetStore {
         load()
     }
 
-    /// Retries a failed read even if the modification date has not changed.
-    /// Call before deriving any data that will be written back to disk.
+    /// Always reads before deriving data that will be written back to disk.
+    /// Modification dates can be preserved by external writers, so they are
+    /// only a UI refresh optimization, not a safe check before a mutation.
     func requireCurrentData() throws {
-        reloadIfChanged()
+        load()
         if let loadFailure {
             throw ReloadFailure(reason: loadFailure)
         }
@@ -93,7 +96,6 @@ final class SnippetStore {
 
     /// Bumps useCount and lastUsedAt, and saves the placeholder values to history.
     func recordUse(id: String, placeholderValues: [PlaceholderValueToRecord] = []) throws {
-        reloadIfChanged()
         try mutate { repository, now in
             try repository.recordUse(id: id, placeholderValues: placeholderValues, now: now)
         }

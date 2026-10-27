@@ -74,4 +74,15 @@ import Testing
         }
         #expect(MissingPlaceholderHistoryError(placeholderKey: "b").description == "No history for {{b}}")
     }
+
+    @Test func lastValuesHonorsGuardDefaultsLikeTheForm() throws {
+        let content = #"{{name}}{{#if +signature "Signature"}} — Thanks{{/if}}{{#if extra}} Extra{{#else}}!{{/if}}"#
+        let values = history(["name": "Ada", "signature": "", "extra": "previous value"])
+        var form = PlaceholderFormModel(snippetContent: content,
+            placeholders: PlaceholderSyntaxParser.extractPlaceholders(content), history: values, now: Self.now)
+        let prepared = try SnippetPreparation.prepareWithLastValues(
+            snippet(content), history: values, now: Self.now)
+        #expect(prepared.content == "Ada — Thanks!")
+        #expect(prepared == form.prepareSubmission())
+    }
 }

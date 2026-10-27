@@ -59,4 +59,32 @@ import SloppyCore
         }
         #expect(store.snippets.map(\.id) == ["a", "b"])
     }
+
+    @Test(arguments: [false, true])
+    func writesPreserveExternalEditsWithUnchangedModificationDate(importing: Bool) throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "Original", createdAt: 1, updatedAt: 1)])
+        try file.save(original)
+        try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_700_000_000)],
+            ofItemAtPath: file.url.path)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+        let modified = try #require(file.modificationDate())
+
+        var external = original
+        external.snippets[0].content = "Modified"
+        try file.save(external)
+        // Sync tools can preserve timestamps when replacing the data file.
+        try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: file.url.path)
+        #expect(file.modificationDate() == modified)
+
+        if importing {
+            try store.importPayload(ImportPayload(snippets: []), mode: .merge)
+        } else {
+            try store.recordUse(id: "a")
+        }
+        #expect(store.snippets[0].content == "Modified")
+        #expect(try file.read().snippets[0].content == "Modified")
+    }
 }

@@ -245,6 +245,22 @@ private func choicePlaceholder(
         #expect(m.dropdownOptions(for: placeholder(m, "k")).last?.title == "Enter new value...")
     }
 
+    @Test func lastUsedOutsideSuggestionLimitRemainsVisibleAndEditable() {
+        var m = model("Hello {{name}}", history: ["name": [
+            value("Bob", uses: 500, daysAgo: 10), value("Ada", daysAgo: 0),
+        ]], max: 1)
+        let name = placeholder(m, "name")
+        #expect(m.historySuggestions["name"] == ["Bob"])
+        #expect(m.dropdownOptions(for: name).contains { $0.id == m.dropdownSelection(for: "name") })
+        #expect(m.showsCustomInput(name))
+        #expect(m.customValue(for: "name") == "Ada")
+        #expect(m.prepareSubmission()?.content == "Hello Ada")
+
+        m.selectOption("Bob", for: name)
+        m.selectOption(Choices.customValueMarker, for: name)
+        #expect(m.prepareSubmission()?.content == "Hello Ada")
+    }
+
     @Test func withoutHistoryUsesDefaultInTextField() {
         let m = model("{{k|fallback}} {{req}}")
         #expect(m.value(for: "k") == "fallback")

@@ -233,26 +233,23 @@ struct PickerRootView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 1, pinnedViews: []) {
-                    if !state.suggestions.isEmpty {
-                        sectionHeader("Search Suggestions", subtitle: nil)
-                        ForEach(state.suggestions, id: \.title) { suggestion in
-                            suggestionRow(suggestion, isSelected: selection?.id == PickerItem.suggestion(suggestion).id)
-                                .id(PickerItem.suggestion(suggestion).id)
-                                .onTapGesture { select(PickerItem.suggestion(suggestion).id) }
+                    ForEach(PickerDisplayRow.rows(state, selectedID: selection?.id)) { row in
+                        switch row.content {
+                        case .header(let title, let subtitle):
+                            sectionHeader(title, subtitle: subtitle)
+                        case .suggestion(let suggestion):
+                            suggestionRow(suggestion, isSelected: row.isSelected)
+                                .onTapGesture { select(row.id) }
+                        case .snippet(let snippet):
+                            SnippetRowView(
+                                snippet: snippet,
+                                isSelected: row.isSelected,
+                                compact: showingDetail,
+                                showsStalenessReason: options.showNeedsAttention,
+                                historyAvailable: historyAvailable.contains(snippet.id),
+                                now: now)
+                                .onTapGesture { select(row.id) }
                         }
-                    }
-                    ForEach(state.sections) { section in
-                        if let title = section.title {
-                            sectionHeader(title, subtitle: section.subtitle)
-                        }
-                        PickerSnippetRows(
-                            snippets: section.snippets,
-                            selectedID: selection?.id,
-                            compact: showingDetail,
-                            showsStalenessReason: options.showNeedsAttention,
-                            historyAvailable: historyAvailable,
-                            now: now,
-                            select: select)
                     }
                     if let empty = state.emptyState {
                         VStack(spacing: 6) {
@@ -345,7 +342,7 @@ struct PickerRootView: View {
             Text("⌘P Filters")
             Text("⌘K Actions")
             if searchFocused {
-                Text("⎋ Back to List")
+                Text(query.isEmpty ? "⎋ Close" : "⎋ Back to List")
             } else {
                 Text("j/k Navigate")
                 Text("⌘F Search")
@@ -355,32 +352,6 @@ struct PickerRootView: View {
         .foregroundStyle(.secondary)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-    }
-}
-
-/// Keep selection among the section's view inputs so a retained section
-/// refreshes its highlights even when filtering only changes other sections.
-private struct PickerSnippetRows: View {
-    var snippets: [Snippet]
-    var selectedID: String?
-    var compact: Bool
-    var showsStalenessReason: Bool
-    var historyAvailable: Set<String>
-    var now: Int64
-    var select: (String) -> Void
-
-    var body: some View {
-        ForEach(snippets) { snippet in
-            SnippetRowView(
-                snippet: snippet,
-                isSelected: selectedID == snippet.id,
-                compact: compact,
-                showsStalenessReason: showsStalenessReason,
-                historyAvailable: historyAvailable.contains(snippet.id),
-                now: now)
-                .id(snippet.id)
-                .onTapGesture { select(snippet.id) }
-        }
     }
 }
 

@@ -52,15 +52,11 @@ extension PickerRootView {
             KeyBinding(id: "focusSearch", title: "Search", chord: KeyChord(.character("f"), .command)) {
                 searchFocused = true
             },
-            // Esc clears a typed query first, then leaves the search field; a further Esc closes the panel.
+            // Keep an active query while handing keys back to the list. Once
+            // unfocused (or with no query), Esc falls through to close the panel.
             KeyBinding(
-                id: "clearQuery", title: "Clear Search", chord: query.isEmpty ? nil : KeyChord(.escape),
-                showsInMenu: false
-            ) {
-                query = ""
-            },
-            KeyBinding(
-                id: "leaveSearch", title: "Leave Search", chord: searchFocused ? KeyChord(.escape) : nil,
+                id: "leaveSearch", title: "Leave Search",
+                chord: searchFocused && !query.isEmpty ? KeyChord(.escape) : nil,
                 showsInMenu: false
             ) {
                 selectedID = currentSelection()?.id

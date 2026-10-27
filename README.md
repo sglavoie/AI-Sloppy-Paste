@@ -39,8 +39,10 @@ different signing identity from local builds.
 
 Each open starts clean, with an empty search, no filters and the first row
 selected. The search field starts unfocused: j/k (or ↓/↑) move through the list.
-⌘F, or k on the first row, focuses the search field. Esc first clears a typed
-search, then hands the keys back to the list.
+⌘F, or k on the first row, focuses the search field. With a typed search, Esc
+keeps the query and selection and hands the keys back to the list for j/k
+navigation; a second Esc closes the picker. Without a search, Esc closes it
+immediately. Use **Clear Search and Filters** in ⌘K to reset the query.
 
 Unfinished snippet edits survive closing the picker. **Resume Draft** appears
 above the list and in ⌘K; saving or explicitly discarding clears the draft.

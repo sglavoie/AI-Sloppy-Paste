@@ -23,10 +23,12 @@ extension StorageData {
             values[index].lastUsed = now
         } else {
             values.append(PlaceholderHistoryValue(value: value, useCount: 1, lastUsed: now, createdAt: now))
-            if values.count > StorageConstants.maxStoredValuesPerKey {
-                values.sort { $0.lastUsed < $1.lastUsed }
-                values.removeFirst()
-            }
+        }
+        // External data can already exceed the limit, including when the
+        // submitted value was stored before. Evict the entire excess.
+        if values.count > StorageConstants.maxStoredValuesPerKey {
+            values.sort { $0.lastUsed < $1.lastUsed }
+            values.removeFirst(values.count - StorageConstants.maxStoredValuesPerKey)
         }
         placeholderHistory[key] = values
         return true

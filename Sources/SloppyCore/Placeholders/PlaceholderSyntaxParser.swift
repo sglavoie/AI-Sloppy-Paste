@@ -133,14 +133,17 @@ public enum PlaceholderSyntaxParser {
 
     private static func parseLegacyOccurrence(_ expression: ScannedExpression) -> ParsedValuePlaceholderOccurrence {
         var content = expression.content.trimmed
-        let isSaved = !content.hasPrefix("!")
-        if !isSaved { content = String(content.dropFirst()).trimmed }
+        let isSaved = content.unicodeScalars.first != "!"
+        if !isSaved { content = String(content.unicodeScalars.dropFirst()).trimmed }
 
-        let pipeIndex = content.lastIndex(of: "|")
+        // Delimiters are scalars, even when a following combining mark makes
+        // them part of the same extended grapheme cluster.
+        let scalars = content.unicodeScalars
+        let pipeIndex = scalars.lastIndex(of: "|")
         let hasExplicitDefault = pipeIndex != nil
-        let explicitDefault = pipeIndex.map { String(content[content.index(after: $0)...]).trimmed }
-        let coreContent = pipeIndex.map { String(content[..<$0]).trimmed } ?? content
-        let parts = coreContent.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+        let explicitDefault = pipeIndex.map { String(scalars[scalars.index(after: $0)...]).trimmed }
+        let coreContent = pipeIndex.map { String(scalars[..<$0]).trimmed } ?? content
+        let parts = coreContent.unicodeScalars.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
 
         let key: String
         var prefixWrapper: String?

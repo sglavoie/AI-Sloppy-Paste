@@ -10,6 +10,28 @@ private func replace(_ text: String, _ values: [String: String]) -> String {
 }
 
 @Suite struct ExtractPlaceholdersTests {
+    @Test func combiningMarksDoNotHideLegacyDelimiters() {
+        let mark = "\u{301}"
+        let withDefault = "{{name|\(mark)fallback}}"
+        #expect(extract(withDefault) == [Placeholder(key: "name", defaultValue: mark + "fallback", isRequired: false)])
+        #expect(replace(withDefault, [:]) == mark + "fallback")
+
+        let wrapped = "{{prefix:\(mark)name:\(mark)suffix}}"
+        #expect(extract(wrapped) == [Placeholder(
+            key: mark + "name", isRequired: false, prefixWrapper: "prefix", suffixWrapper: mark + "suffix")])
+        #expect(replace(wrapped, [mark + "name": "Ada"]) == "prefixAda" + mark + "suffix")
+    }
+
+    @Test(arguments: ["", "[one|two]"])
+    func combiningMarkAfterNoSaveFlagIsPartOfKey(choices: String) {
+        let key = "\u{301}name"
+        let text = "{{!\(key)\(choices)}}"
+        let placeholder = extract(text).first
+        #expect(placeholder?.key == key)
+        #expect(placeholder?.isSaved == false)
+        #expect(replace(text, [key: "Ada"]) == "Ada")
+    }
+
     @Test func basic() {
         #expect(extract("Hello {{name}}, welcome!") == [Placeholder(key: "name", isRequired: true)])
     }

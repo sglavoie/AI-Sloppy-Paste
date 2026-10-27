@@ -36,8 +36,8 @@ public enum ChoiceExpressionParser {
 
     public static func parse(_ trimmedContent: String) -> ChoiceParseResult {
         var bodyString = trimmedContent
-        let isSaved = !bodyString.hasPrefix("!")
-        if !isSaved { bodyString = String(bodyString.dropFirst()).trimmed }
+        let isSaved = bodyString.unicodeScalars.first != "!"
+        if !isSaved { bodyString = String(bodyString.unicodeScalars.dropFirst()).trimmed }
         let body = Array(bodyString.unicodeScalars)
         if !hasKeyChoiceIntent(body) { return .legacy }
 

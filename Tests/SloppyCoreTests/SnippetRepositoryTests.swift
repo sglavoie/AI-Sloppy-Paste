@@ -304,6 +304,23 @@ import Testing
 }
 
 @Suite struct PlaceholderHistoryMutationTests {
+    @Test(arguments: [false, true])
+    func recordingUseRestoresLimitForOversizedStoredHistory(existingValue: Bool) {
+        let limit = StorageConstants.maxStoredValuesPerKey
+        let history = (0..<(limit + 5)).map {
+            PlaceholderHistoryValue(value: "v\($0)", useCount: 1, lastUsed: Int64($0), createdAt: 0)
+        }
+        var data = StorageData(placeholderHistory: ["k": history])
+        let recorded = existingValue ? "v0" : "new"
+        data.addPlaceholderValue(key: "k", value: recorded, now: 1_000)
+
+        let values = data.placeholderHistory(forKey: "k")
+        #expect(values.count == limit)
+        #expect(values.contains { $0.value == recorded && $0.lastUsed == 1_000 })
+        #expect(!values.contains { $0.value == "v1" })
+        #expect(values.contains { $0.value == "v\(limit + 4)" })
+    }
+
     @Test func addEvictsLeastRecentlyUsedPastLimit() {
         var data = StorageData()
         for i in 0..<StorageConstants.maxStoredValuesPerKey {

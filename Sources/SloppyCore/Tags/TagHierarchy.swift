@@ -120,13 +120,14 @@ public enum TagHierarchy {
         }
         tree.forEach(collect)
 
-        let orphaned = normalized.filter { $0.contains("/") && !inTree.contains($0) }
-        let orphanedSet = Set(orphaned)
-        // Only the shallowest orphans become roots; deeper ones nest under them.
-        let orphanedRoots = orphaned.filter { tag in
-            !allParentTags(tag).contains { orphanedSet.contains($0) || inTree.contains($0) }
+        // An ancestor's presence does not make a tag reachable when an
+        // intermediate parent is missing. Add each still-unreachable tag in
+        // path order, collecting its subtree so descendants appear only once.
+        for tag in normalized where !inTree.contains(tag) {
+            let node = buildNode(tag)
+            tree.append(node)
+            collect(node)
         }
-        tree += orphanedRoots.map(buildNode)
         return tree
     }
 

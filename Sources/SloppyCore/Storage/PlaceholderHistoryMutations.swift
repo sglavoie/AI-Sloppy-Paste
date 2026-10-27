@@ -19,7 +19,7 @@ extension StorageData {
 
         var values = placeholderHistory[key] ?? []
         if let index = values.firstIndex(where: { $0.value == value }) {
-            values[index].useCount += 1
+            values[index].useCount = UsageCount.adding(values[index].useCount, 1)
             values[index].lastUsed = now
         } else {
             values.append(PlaceholderHistoryValue(value: value, useCount: 1, lastUsed: now, createdAt: now))
@@ -36,7 +36,7 @@ extension StorageData {
     @discardableResult
     public mutating func updatePlaceholderValueUsage(key: String, value: String, now: Int64) -> Bool {
         guard let index = placeholderHistory[key]?.firstIndex(where: { $0.value == value }) else { return false }
-        placeholderHistory[key]![index].useCount += 1
+        placeholderHistory[key]![index].useCount = UsageCount.adding(placeholderHistory[key]![index].useCount, 1)
         placeholderHistory[key]![index].lastUsed = now
         return true
     }

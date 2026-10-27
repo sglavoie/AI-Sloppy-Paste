@@ -25,7 +25,7 @@ public struct TagStatistics: Sendable, Hashable {
                 tag: tag,
                 snippetCount: matching.count,
                 lastUsedAt: matching.compactMap(\.lastUsedAt).max(),
-                totalUsageCount: matching.reduce(0) { $0 + $1.useCount }
+                totalUsageCount: matching.reduce(0) { UsageCount.adding($0, $1.useCount) }
             )
         }
     }

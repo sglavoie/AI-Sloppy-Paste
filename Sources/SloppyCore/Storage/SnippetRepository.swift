@@ -108,7 +108,7 @@ public struct SnippetRepository: Sendable, Hashable {
     /// Blank or opted-out values are skipped, and repeated key/value pairs count once.
     public mutating func recordUse(id: String, placeholderValues: [PlaceholderValueToRecord] = [], now: Int64) throws {
         let index = try index(of: id)
-        data.snippets[index].useCount += 1
+        data.snippets[index].useCount = UsageCount.adding(data.snippets[index].useCount, 1)
         data.snippets[index].lastUsedAt = now
         data.snippets[index].updatedAt = now
 

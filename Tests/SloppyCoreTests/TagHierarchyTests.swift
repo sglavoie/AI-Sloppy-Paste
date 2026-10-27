@@ -146,6 +146,17 @@ import Testing
         #expect(tree[0].children.isEmpty)
     }
 
+    @Test(arguments: [
+        ["work", "work/projects/client-a"],
+        ["work/projects", "work/projects/client-a/tasks"],
+        ["work", "work/projects/client-a", "work/projects/client-a/tasks"],
+    ])
+    func missingIntermediateParentsKeepEveryTagVisible(tags: [String]) {
+        let flat = H.flattenTagTree(H.buildTagTree(tags))
+        #expect(flat.map(\.tag).sorted() == tags.sorted())
+        #expect(flat.first { $0.tag == tags[1] }?.depth == H.tagDepth(tags[1]))
+    }
+
     @Test func orphansWithCommonParent() {
         let tree = H.buildTagTree(["work/projects/client-a", "work/projects/client-b"])
         #expect(tree.map(\.tag) == ["work/projects/client-a", "work/projects/client-b"])

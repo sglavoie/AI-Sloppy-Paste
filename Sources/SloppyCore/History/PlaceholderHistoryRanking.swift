@@ -69,7 +69,7 @@ public struct PlaceholderKeyStats: Sendable, Hashable {
         self.init(
             key: key,
             valueCount: values.count,
-            totalUseCount: values.reduce(0) { $0 + $1.useCount },
+            totalUseCount: values.reduce(0) { UsageCount.adding($0, $1.useCount) },
             lastUsed: values.map(\.lastUsed).max()
         )
     }

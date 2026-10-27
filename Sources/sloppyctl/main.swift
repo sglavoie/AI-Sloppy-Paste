@@ -50,7 +50,7 @@ struct Stats: Codable {
         tagged = snippets.filter { !$0.tags.isEmpty }.count
         untagged = snippets.count - tagged
         distinctTags = Set(snippets.flatMap(\.tags)).count
-        totalUses = snippets.reduce(0) { $0 + $1.useCount }
+        totalUses = snippets.reduce(0) { UsageCount.adding($0, $1.useCount) }
         stale = snippets.filter { Staleness.analyze($0, now: now).isStale }.count
         contexts = TitleContext.allContexts(snippets).count
         placeholderKeys = data.placeholderHistory.count

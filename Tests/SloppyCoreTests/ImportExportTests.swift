@@ -139,6 +139,31 @@ import Testing
         #expect(!merged.contains { $0.value == "old0" })
     }
 
+    @Test(arguments: [false, true])
+    func mergedHistoryDeduplicatesIncomingValues(existingKey: Bool) {
+        let original = PlaceholderHistoryValue(value: "existing", useCount: 5, lastUsed: 1, createdAt: 0)
+        let incoming = PlaceholderHistoryValue(value: "new", useCount: 1, lastUsed: 2, createdAt: 0)
+        let current: PlaceholderHistory = existingKey ? ["k": [original]] : [:]
+        let imported: PlaceholderHistory = ["k": [original, incoming, incoming]]
+
+        let merged = PlaceholderHistoryMerge.merge(current, imported)
+
+        #expect(merged["k"] == [original, incoming])
+        #expect(PlaceholderHistoryMerge.merge(merged, imported) == merged)
+    }
+
+    @Test func newHistoryKeyHonorsStorageLimit() {
+        let limit = StorageConstants.maxStoredValuesPerKey
+        let values = (0...limit).map {
+            PlaceholderHistoryValue(value: "value\($0)", useCount: 1, lastUsed: Int64($0), createdAt: 0)
+        }
+        let merged = PlaceholderHistoryMerge.merge([:], ["k": values])["k"]!
+
+        #expect(merged.count == limit)
+        #expect(merged.first == values.last)
+        #expect(!merged.contains(values[0]))
+    }
+
     @Test func exportFileNameUsesSafeUTCTimestamp() {
         #expect(ImportExport.exportFileName(now: 1_767_605_400_123) == "sloppy-paste-2026-01-05T09-30-00-123Z.json")
     }

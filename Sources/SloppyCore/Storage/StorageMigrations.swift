@@ -26,6 +26,9 @@ public struct LegacyStorageData: Decodable, Sendable, Hashable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         version = try? c.decodeIfPresent(Int.self, forKey: .version)
+        // Check before decoding fields whose shape may have changed in a newer
+        // version, so an unsupported document is never treated as corrupt.
+        try StorageMigrations.requireSupportedVersion(version)
         snippets = try c.decodeIfPresent([LegacySnippet].self, forKey: .snippets) ?? []
         tags = (try? c.decodeIfPresent([LossyString].self, forKey: .tags))?.compactMap(\.value) ?? []
         placeholderHistory = try c.decodeIfPresent(PlaceholderHistory.self, forKey: .placeholderHistory)
@@ -40,12 +43,14 @@ public enum StorageMigrations {
     }
 
     /// Decodes and migrates raw file contents. Throws when the JSON is not a
-    /// storage document at all (the caller quarantines the file).
+    /// storage document at all (the caller quarantines the file), or when its
+    /// storage version is newer than supported (the caller leaves it untouched).
     public static func migrate(json: Data) throws -> Result {
-        migrate(try JSONDecoder().decode(LegacyStorageData.self, from: json))
+        try migrate(JSONDecoder().decode(LegacyStorageData.self, from: json))
     }
 
-    public static func migrate(_ legacy: LegacyStorageData) -> Result {
+    public static func migrate(_ legacy: LegacyStorageData) throws -> Result {
+        try requireSupportedVersion(legacy.version)
         var data = legacy
         var didMigrate = false
         // Snippets that went through a shape-normalising step; the rest keep
@@ -79,6 +84,12 @@ public enum StorageMigrations {
     }
 
     private typealias Migration = @Sendable (inout LegacyStorageData, inout Bool) -> Void
+
+    static func requireSupportedVersion(_ version: Int?) throws {
+        if let version, version > StorageConstants.currentVersion {
+            throw StorageError.unsupportedStorageVersion(version)
+        }
+    }
 
     /// Keyed by the version being migrated from. Steps that only backfill a
     /// default (v2 `isArchived`, v5 `description`) are covered by the final fill.

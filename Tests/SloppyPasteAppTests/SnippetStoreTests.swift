@@ -60,6 +60,39 @@ import SloppyCore
         #expect(store.snippets.map(\.id) == ["a", "b"])
     }
 
+    @Test func futureStorageVersionBlocksEditsAndImportsWithoutChangingFile() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "Keep", createdAt: 1, updatedAt: 1)])
+        try file.save(original)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+
+        let future = Data(#"{"version":99,"snippets":{"newFormat":true},"unknown":"preserve"}"#.utf8)
+        try future.write(to: file.url, options: .atomic)
+        store.load()
+        #expect(store.lastError?.contains("99") == true)
+        #expect(store.data == original)
+        #expect(store.quarantinedURL == nil)
+
+        var ranMutation = false
+        #expect(throws: (any Error).self) {
+            try store.mutate { repository, _ in
+                ranMutation = true
+                repository.deleteSnippet(id: "a")
+            }
+        }
+        #expect(!ranMutation)
+        for mode in ImportMode.allCases {
+            #expect(throws: (any Error).self) {
+                try store.importPayload(ImportPayload(snippets: []), mode: mode)
+            }
+        }
+        #expect(try Data(contentsOf: file.url) == future)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path) == ["data.json"])
+        #expect(store.data == original)
+    }
+
     @Test(arguments: [false, true])
     func writesPreserveExternalEditsWithUnchangedModificationDate(importing: Bool) throws {
         defer { try? FileManager.default.removeItem(at: directory) }

@@ -52,8 +52,8 @@ import Testing
 
     @Test func v4AndEarlierDropPlaceholderHistory() throws {
         let history: PlaceholderHistory = ["name": [PlaceholderHistoryValue(value: "Ada", useCount: 1, lastUsed: 1, createdAt: 1)]]
-        let old = StorageMigrations.migrate(LegacyStorageData(version: 4, placeholderHistory: history))
-        let newer = StorageMigrations.migrate(LegacyStorageData(version: 5, placeholderHistory: history))
+        let old = try StorageMigrations.migrate(LegacyStorageData(version: 4, placeholderHistory: history))
+        let newer = try StorageMigrations.migrate(LegacyStorageData(version: 5, placeholderHistory: history))
 
         #expect(old.data.placeholderHistory.isEmpty)
         #expect(newer.data.placeholderHistory == history)
@@ -69,11 +69,16 @@ import Testing
         #expect(result.data == data)
     }
 
-    @Test(arguments: [nil, 99])
-    func unknownVersionIsStampedCurrent(version: Int?) {
-        let result = StorageMigrations.migrate(LegacyStorageData(version: version))
+    @Test func missingVersionIsStampedCurrent() throws {
+        let result = try StorageMigrations.migrate(LegacyStorageData(version: nil))
         #expect(result.didMigrate)
         #expect(result.data.version == StorageConstants.currentVersion)
+    }
+
+    @Test func futureVersionIsRejected() {
+        #expect(throws: StorageError.unsupportedStorageVersion(99)) {
+            try StorageMigrations.migrate(LegacyStorageData(version: 99))
+        }
     }
 
     @Test func nonStringTagsAreDropped() throws {

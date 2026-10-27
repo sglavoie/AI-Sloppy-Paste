@@ -41,6 +41,7 @@ public struct StorageFile: Sendable, Hashable {
     /// Loads and migrates the file, saving it back if it migrated. A missing
     /// file gives empty data; an undecodable one is renamed to
     /// `data.corrupt-<now>.json` and also gives empty data.
+    /// A newer storage version throws without rewriting or quarantining the file.
     public func load(now: Int64) throws -> LoadResult {
         let contents: Data
         do {
@@ -52,6 +53,9 @@ public struct StorageFile: Sendable, Hashable {
         let result: StorageMigrations.Result
         do {
             result = try StorageMigrations.migrate(json: contents)
+        } catch let error as StorageError {
+            // Unsupported versions must block writes, not start an empty store.
+            throw error
         } catch {
             let quarantined = quarantineURL(now: now)
             try FileManager.default.moveItem(at: url, to: quarantined)

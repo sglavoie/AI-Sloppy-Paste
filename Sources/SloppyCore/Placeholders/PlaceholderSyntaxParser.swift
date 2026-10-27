@@ -58,7 +58,7 @@ public enum PlaceholderSyntaxParser {
 
         for expression in scanExpressions(text) {
             let trimmed = expression.content.trimmed
-            if trimmed.hasPrefix("#if ") || controlExpressions.contains(trimmed) { continue }
+            if trimmed.contains(/^#if\s/.matchingSemantics(.unicodeScalar)) || controlExpressions.contains(trimmed) { continue }
 
             let occurrence: ParsedValuePlaceholderOccurrence
             switch ChoiceExpressionParser.parse(trimmed) {

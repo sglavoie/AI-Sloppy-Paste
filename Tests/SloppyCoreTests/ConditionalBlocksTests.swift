@@ -15,6 +15,20 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 }
 
 @Suite struct ProcessConditionalBlocksTests {
+    @Test(arguments: ["\t", "\n", "\r\n", "  "])
+    func whitespaceAfterIfIsConsistentAcrossParsingAndRendering(separator: String) {
+        let text = "{{#if\(separator)+show \"Show greeting\"}}Hello {{name}}{{#else}}Hidden{{/if}}"
+        let placeholders = extract(text)
+        #expect(placeholders.map(\.key) == ["name", "show"])
+        #expect(placeholders.last?.isGuardOnly == true)
+        #expect(placeholders.last?.defaultOn == true)
+        #expect(bodies(text, "show") == [.init(ifBody: "Hello {{name}}", elseBody: "Hidden")])
+        #expect(PlaceholderRenderer.render(text, values: ["show": "true", "name": "Ada"], now: 0) == "Hello Ada")
+        #expect(PlaceholderRenderer.render(text, values: ["show": "", "name": "Ada"], now: 0) == "Hidden")
+        let nested = "{{#if outer}}\(text){{#else}}Outside{{/if}}"
+        #expect(PlaceholderRenderer.render(nested, values: ["outer": "yes", "show": "true", "name": "Ada"], now: 0) == "Hello Ada")
+    }
+
     static let cases: [(String, [String: String], String)] = [
         // if-only, if-else, falsy values
         ("{{#if name}}Hello{{/if}}", ["name": "Alice"], "Hello"),

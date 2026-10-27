@@ -80,14 +80,10 @@ public enum PlaceholderHistoryMerge {
     public static func merge(_ current: PlaceholderHistory, _ imported: PlaceholderHistory) -> PlaceholderHistory {
         var merged = current
         for (key, values) in imported {
-            guard let existing = merged[key] else {
-                merged[key] = values
-                continue
-            }
-            let existingValues = Set(existing.map(\.value))
-            var combined = existing + values.filter { !existingValues.contains($0.value) }
+            var seen = Set<String>()
+            var combined = ((merged[key] ?? []) + values).filter { seen.insert($0.value).inserted }
             if combined.count > StorageConstants.maxStoredValuesPerKey {
-                combined.sort { $0.lastUsed > $1.lastUsed }
+                combined = combined.stableSorted { $0.lastUsed > $1.lastUsed }
                 combined = Array(combined.prefix(StorageConstants.maxStoredValuesPerKey))
             }
             merged[key] = combined

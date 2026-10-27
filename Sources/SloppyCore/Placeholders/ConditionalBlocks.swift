@@ -26,8 +26,8 @@ public enum ConditionalBlocks {
     /// line behind. Placeholders inside the chosen body are left for
     /// `PlaceholderRenderer.replacePlaceholders`.
     public static func process(_ text: String, values: [String: String]) -> String {
-        // Bodies exclude any nested `{{#if `, so only leaf blocks match.
-        let leaf = /\{\{#if ([^}]+)\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{#else\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{\/else\}\})?)?\{\{\/if\}\}/
+        // Bodies exclude nested if tags, so only leaf blocks match.
+        let leaf = /\{\{#if\s+([^}]+)\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{#else\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{\/else\}\})?)?\{\{\/if\}\}/
             .matchingSemantics(.unicodeScalar)
 
         var result = text

@@ -190,6 +190,20 @@ import Testing
         #expect(QueryParser.parse(query) == ParsedQuery(fuzzyText: query))
     }
 
+    @Test(arguments: [
+        #""unfinished tag:work is:archived"#,
+        #"ctx:"unfinished not:tag:work not:favorite"#,
+        #"not:tag:"unfinished ctx:work"#,
+        #""unfinished \" tag:work"#,
+        "\"unfinished\nnot:archived",
+        "\"unfinished tag:work\\",
+    ])
+    func unclosedQuotesDoNotActivateOperatorsInsideThem(_ query: String) {
+        #expect(QueryParser.parse(query) == ParsedQuery(fuzzyText: query))
+        #expect(QueryParser.parse("tag:outside " + query)
+            == ParsedQuery(tags: ["outside"], fuzzyText: query))
+    }
+
     @Test(arguments: ["tag:work    is:favorite", "  tag:work  is:favorite ", "\ttag:work\nis:favorite"])
     func whitespaceBetweenOperators(_ query: String) {
         let result = QueryParser.parse(query)

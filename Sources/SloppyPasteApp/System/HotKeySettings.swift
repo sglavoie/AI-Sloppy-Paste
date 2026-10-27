@@ -65,7 +65,10 @@ extension HotKey {
 
     /// The character `keyCode` types in the current keyboard layout, unmodified.
     private static func character(for keyCode: Int) -> String? {
-        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
+        // Persisted hotkeys use UInt32; Carbon's layout lookup only accepts
+        // UInt16. Malformed settings must fall back to a label, not trap.
+        guard let virtualKeyCode = UInt16(exactly: keyCode),
+            let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
             let rawLayout = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
         else { return nil }
         let layoutData = Unmanaged<CFData>.fromOpaque(rawLayout).takeUnretainedValue() as Data
@@ -75,7 +78,7 @@ extension HotKey {
             var characters = [UniChar](repeating: 0, count: 4)
             var length = 0
             let status = UCKeyTranslate(
-                layout, UInt16(keyCode), UInt16(kUCKeyActionDisplay), 0, UInt32(LMGetKbdType()),
+                layout, virtualKeyCode, UInt16(kUCKeyActionDisplay), 0, UInt32(LMGetKbdType()),
                 OptionBits(kUCKeyTranslateNoDeadKeysBit), &deadKeyState,
                 characters.count, &length, &characters)
             guard status == noErr, length > 0 else { return nil }

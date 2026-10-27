@@ -70,8 +70,9 @@ public enum QueryParser {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return result }
 
         // Keep a quoted operator value together, and consume whole phrases
-        // before looking for operators inside them. Unclosed quotes stay fuzzy.
-        let tokens = /(not:tag:|not:ctx:|tag:|ctx:)"((?:\\[\s\S]|[^"\\])*)"|"((?:\\[\s\S]|[^"\\])+)"|\S+/
+        // before looking for operators inside them. Consume an unclosed quote
+        // through the end, so its contents cannot become active filters.
+        let tokens = /(not:tag:|not:ctx:|tag:|ctx:)"((?:\\[\s\S]|[^"\\])*)"|"((?:\\[\s\S]|[^"\\])+)"|[^\s"]*"(?:\\[\s\S]|[^"\\])*\\?$|\S+/
             .matchingSemantics(.unicodeScalar)
         var fuzzyTokens: [String] = []
         for match in query.matches(of: tokens) {

@@ -174,6 +174,13 @@ final class KeyRouter {
 
     /// Returns true when the event was consumed.
     func handle(_ event: NSEvent) -> Bool {
+        // Input methods own keystrokes while composing marked text. Return,
+        // Escape, arrows and Tab may confirm or navigate candidates; routing
+        // them here could paste a snippet or execute an action-menu command.
+        // NSTextField editing uses the window's shared field editor as well.
+        if (window?.firstResponder as? any NSTextInputClient)?.hasMarkedText() == true {
+            return false
+        }
         if let onZoom, let command = ZoomCommand(event) {
             onZoom(command)
             return true

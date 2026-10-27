@@ -34,6 +34,17 @@ import Testing
         #expect(preview("{{#if name}}Hi {{name}}{{#else}}Hello{{/if}}") == "⟨if name: Hi ⟨name⟩ | else: Hello⟩")
     }
 
+    @Test func nestedConditionalsKeepTheirOwnElseBranches() {
+        let content = "{{#if outer}}A {{#if inner}}Hi {{name}}{{#else}}B{{/else}}{{/if}}{{#else}}C{{/if}}"
+        #expect(preview(content) == "⟨if outer: A ⟨if inner: Hi ⟨name⟩ | else: B⟩ | else: C⟩")
+    }
+
+    @Test(arguments: [" ", "\t", "\n", "\r\n"])
+    func previewAcceptsRenderingWhitespace(separator: String) {
+        let content = "{{#if\(separator)+show \"Show date\"}}{{\(separator)DATE\(separator)}}{{/if}}"
+        #expect(preview(content) == "⟨if show: ⟨DATE → 2024-03-15⟩⟩")
+    }
+
     @Test func conditionalLabelsAndPlusPrefixAreHidden() {
         #expect(preview(#"{{#if +k "Add a note"}}Note{{/if}}"#) == "⟨if k: Note⟩")
     }

@@ -3,6 +3,19 @@ import Testing
 @testable import SloppyCore
 
 @Suite struct TagStatisticsTests {
+    @Test func caseVariantsCountOncePerSnippetAndKeepExactTagSemantics() {
+        let snippets = [
+            Self.snippet("1", [" Work ", "WORK"], lastUsedAt: 5000, useCount: 10),
+            Self.snippet("2", ["Work/Child"], lastUsedAt: 8000, useCount: 20),
+        ]
+        let stats = TagStatistics.compute(snippets: snippets, tags: ["work", "WORK/child"])
+        #expect(stats == [
+            TagStatistics(tag: "work", snippetCount: 1, lastUsedAt: 5000, totalUsageCount: 10),
+            TagStatistics(tag: "WORK/child", snippetCount: 1, lastUsedAt: 8000, totalUsageCount: 20),
+        ])
+        #expect(TagStatistics.unusedTags(snippets: snippets, tags: ["work", "WORK/child", "missing"]) == ["missing"])
+    }
+
     static func snippet(_ id: String, _ tags: [String], lastUsedAt: Int64?, useCount: Int) -> Snippet {
         Snippet(id: id, title: "Snippet \(id)", content: "Content \(id)", tags: tags,
                 createdAt: 1000, updatedAt: 2000, lastUsedAt: lastUsedAt, useCount: useCount)

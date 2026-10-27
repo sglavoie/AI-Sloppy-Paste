@@ -17,25 +17,31 @@ public enum SnippetPreview {
     }
 
     private static func previewSystemPlaceholders(_ content: String, now: Int64, timeZone: TimeZone) -> String {
-        var result = content
-        for name in SystemPlaceholders.names {
-            guard let resolved = SystemPlaceholders.value(for: name, now: now, timeZone: timeZone) else { continue }
-            result = result.replacingOccurrences(of: "{{\(name)}}", with: "⟨\(name) → \(resolved)⟩")
+        let expression = /\{\{\s*(DATETIME|DATE|TIME|TODAY|NOW|YEAR|MONTH|DAY)\s*\}\}/.matchingSemantics(.unicodeScalar)
+        return content.replacing(expression) { match in
+            let name = String(match.1)
+            guard let resolved = SystemPlaceholders.value(for: name, now: now, timeZone: timeZone) else {
+                return String(match.0)
+            }
+            return "⟨\(name) → \(resolved)⟩"
         }
-        return result
     }
 
     private static func previewConditionalBlocks(_ content: String) -> String {
-        let block = /\{\{#if ([^}]+)\}\}([\s\S]*?)\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)
-        return content.replacing(block) { match in
-            var displayKey = String(match.1).trimmed
-                .replacing(/\s+"[^"]*"$/.matchingSemantics(.unicodeScalar), with: "")
-            if displayKey.hasPrefix("+") { displayKey.removeFirst() }
-            let cleanBody = String(match.2)
-                .replacingOccurrences(of: "{{#else}}", with: " | else: ")
-                .replacingOccurrences(of: "{{/else}}", with: "")
-            return "⟨if \(displayKey): \(cleanBody.trimmed)⟩"
+        // Annotate innermost blocks first so each closing tag and else branch
+        // belongs to its own condition. Each pass removes at least one block.
+        let block = /\{\{#if\s+([^}]+)\}\}((?:(?!\{\{#if\s)[\s\S])*?)\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)
+        var result = content
+        while result.contains(block) {
+            result = result.replacing(block) { match in
+                let displayKey = ConditionalBlocks.conditionKey(String(match.1))
+                let cleanBody = String(match.2)
+                    .replacingOccurrences(of: "{{#else}}", with: " | else: ")
+                    .replacingOccurrences(of: "{{/else}}", with: "")
+                return "⟨if \(displayKey): \(cleanBody.trimmed)⟩"
+            }
         }
+        return result
     }
 
     private static func previewValuePlaceholders(_ content: String) -> String {

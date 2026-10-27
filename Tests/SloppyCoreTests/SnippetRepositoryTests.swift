@@ -131,6 +131,49 @@ import Testing
 }
 
 @Suite struct SnippetRepositoryTagTests {
+    private func externallyEditedTags() -> SnippetRepository {
+        var r = repo([["work"], ["work/admin"], ["workshop"]])
+        r.data.snippets[0].tags = [" Work ", "WORK"]
+        r.data.snippets[1].tags = ["Work/Admin", "OFFICE/Admin"]
+        r.data.snippets[2].tags = ["Workshop"]
+        return r
+    }
+
+    @Test func tagListNormalizesExternalEditsWithoutChangingStorage() {
+        let r = externallyEditedTags()
+        #expect(r.tags == ["office/admin", "work", "work/admin", "workshop"])
+        #expect(r.snippets[0].tags == [" Work ", "WORK"])
+    }
+
+    @Test func deleteMatchesNormalizedTagButKeepsDescendants() {
+        var r = externallyEditedTags()
+        r.deleteTag(" work ", now: 2)
+        #expect(r.snippets.map(\.tags) == [[], ["Work/Admin", "OFFICE/Admin"], ["Workshop"]])
+        #expect(r.snippets.map(\.updatedAt) == [2, 1, 1])
+    }
+
+    @Test(arguments: [false, true])
+    func retagMatchesExternalCaseVariantsAndDeduplicates(merge: Bool) throws {
+        var r = externallyEditedTags()
+        let affected = if merge {
+            try r.mergeTags(" WORK ", into: "Office", now: 2)
+        } else {
+            try r.renameTag(" WORK ", to: "Office", now: 2)
+        }
+        #expect(affected == 2)
+        #expect(r.snippets.map(\.tags) == [["office"], ["office/admin"], ["Workshop"]])
+        #expect(r.snippets.map(\.updatedAt) == [2, 2, 1])
+    }
+
+    @Test func mergingCaseVariantsOfSameTagThrowsWithoutMutation() {
+        var r = externallyEditedTags()
+        let before = r
+        #expect(throws: StorageError.cannotMergeTagWithItself) {
+            try r.mergeTags(" WORK ", into: "work", now: 2)
+        }
+        #expect(r == before)
+    }
+
     @Test(arguments: ["a/b/c/d/e", String(repeating: "x", count: 48)], [false, true])
     func retagRejectsInvalidDescendantsWithoutPartialChanges(target: String, merge: Bool) throws {
         var r = repo([["work"], ["work/child"], [target]])

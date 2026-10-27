@@ -17,10 +17,14 @@ public struct TagStatistics: Sendable, Hashable {
         self.totalUsageCount = totalUsageCount
     }
 
-    /// Statistics for each of `tags`, in the same order. Matches exact tags only.
+    /// Statistics for each of `tags`, in the same order. Matches normalized
+    /// exact tags only, counting each snippet once even with duplicate variants.
     public static func compute(snippets: [Snippet], tags: [String]) -> [TagStatistics] {
         tags.map { tag in
-            let matching = snippets.filter { $0.tags.contains(tag) }
+            let normalized = TagNormalization.normalizeTag(tag)
+            let matching = snippets.filter {
+                $0.tags.contains { TagNormalization.normalizeTag($0) == normalized }
+            }
             return TagStatistics(
                 tag: tag,
                 snippetCount: matching.count,
@@ -35,8 +39,8 @@ extension TagStatistics {
     /// Tags of `tags` that no unarchived snippet carries (TS getUnusedTags),
     /// counted in the root "Manage Tags (n unused)" action.
     public static func unusedTags(snippets: [Snippet], tags: [String]) -> [String] {
-        let used = Set(snippets.lazy.filter { !$0.isArchived }.flatMap(\.tags))
-        return tags.filter { !used.contains($0) }
+        let used = Set(snippets.lazy.filter { !$0.isArchived }.flatMap(\.tags).map(TagNormalization.normalizeTag))
+        return tags.filter { !used.contains(TagNormalization.normalizeTag($0)) }
     }
 }
 

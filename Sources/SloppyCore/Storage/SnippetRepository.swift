@@ -28,9 +28,11 @@ public struct SnippetRepository: Sendable, Hashable {
         data.snippets.first { $0.id == id }
     }
 
-    /// Unique tags across all snippets, sorted.
+    /// Unique normalized tags across all snippets, sorted. External edits may
+    /// retain case variants in storage; management uses the same identity as search.
     public var tags: [String] {
-        Array(Set(data.snippets.flatMap(\.tags))).sorted(by: TagNormalization.localeLess)
+        Array(Set(TagNormalization.normalizeTags(data.snippets.flatMap(\.tags))))
+            .sorted(by: TagNormalization.localeLess)
     }
 
     // MARK: Snippets
@@ -123,10 +125,12 @@ public struct SnippetRepository: Sendable, Hashable {
 
     // MARK: Tags
 
-    /// Removes `tag` (exact match) from every snippet that has it.
+    /// Removes `tag` (normalized exact match) without removing its descendants.
     public mutating func deleteTag(_ tag: String, now: Int64) {
-        for index in data.snippets.indices where data.snippets[index].tags.contains(tag) {
-            data.snippets[index].tags.removeAll { $0 == tag }
+        let tag = TagNormalization.normalizeTag(tag)
+        for index in data.snippets.indices
+        where data.snippets[index].tags.contains(where: { TagNormalization.normalizeTag($0) == tag }) {
+            data.snippets[index].tags.removeAll { TagNormalization.normalizeTag($0) == tag }
             data.snippets[index].updatedAt = now
         }
     }
@@ -141,23 +145,27 @@ public struct SnippetRepository: Sendable, Hashable {
     /// Merges `sourceTag` and its descendants into `targetTag`. Returns the number of snippets changed.
     @discardableResult
     public mutating func mergeTags(_ sourceTag: String, into targetTag: String, now: Int64) throws -> Int {
-        guard sourceTag != targetTag else { throw StorageError.cannotMergeTagWithItself }
+        guard TagNormalization.normalizeTag(sourceTag) != TagNormalization.normalizeTag(targetTag) else {
+            throw StorageError.cannotMergeTagWithItself
+        }
         return try retag(from: sourceTag, to: targetTag, now: now)
     }
 
     private mutating func retag(from source: String, to target: String, now: Int64) throws -> Int {
+        let source = TagNormalization.normalizeTag(source)
         let target = try Self.validatedTag(target)
         var changes: [(index: Int, tags: [String])] = []
         for index in data.snippets.indices {
             let tags = data.snippets[index].tags
-            guard tags.contains(where: { $0 == source || $0.hasPrefix(source + "/") }) else { continue }
+            guard tags.contains(where: { TagHierarchy.matches($0, filter: source) }) else { continue }
             var seen = Set<String>()
             let updatedTags = try tags
                 .map { tag in
-                    guard tag == source || tag.hasPrefix(source + "/") else { return tag }
-                    return try Self.validatedTag(Self.replacePrefix(tag, source: source, target: target))
+                    let normalized = TagNormalization.normalizeTag(tag)
+                    guard normalized == source || normalized.hasPrefix(source + "/") else { return tag }
+                    return try Self.validatedTag(Self.replacePrefix(normalized, source: source, target: target))
                 }
-                .filter { seen.insert($0).inserted }
+                .filter { seen.insert(TagNormalization.normalizeTag($0)).inserted }
             changes.append((index, updatedTags))
         }
         // Validate every descendant first so a failure cannot leave a partial rename.

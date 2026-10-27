@@ -92,7 +92,7 @@ public struct PlaceholderFormModel: Sendable, Hashable {
                 useCustomInput[key] = true
             } else {
                 let useSuggestion = !initial.isEmpty && ranked.contains(initial)
-                dropdownSelections[key] = useSuggestion ? initial : PlaceholderFormChoices.customValueMarker
+                dropdownSelections[key] = useSuggestion ? Self.historyOptionID(initial) : PlaceholderFormChoices.customValueMarker
                 useCustomInput[key] = !useSuggestion
                 // Recency chooses the prefill, but frequency can push that
                 // value outside the capped menu. Keep it visible as custom text.
@@ -127,7 +127,7 @@ public struct PlaceholderFormModel: Sendable, Hashable {
     /// A banner describing history pre-fill, or nil when nothing was pre-filled.
     public func summary(mode: PlaceholderFormMode) -> String? {
         let requiredCount = requiredPlaceholders.count
-        let prefilledCount = prefilledKeys.count
+        let prefilledCount = requiredPlaceholders.count { prefilledKeys.contains($0.key) }
         let fieldWord = requiredCount == 1 ? "field" : "fields"
         if requiredCount > 0 && prefilledCount == requiredCount {
             return "All \(requiredCount) \(fieldWord) pre-filled from history — submit to \(mode.verb)."
@@ -168,7 +168,8 @@ public struct PlaceholderFormModel: Sendable, Hashable {
         dropdownSelections[key]?.nilIfEmpty ?? PlaceholderFormChoices.customValueMarker
     }
 
-    /// Authored choices (by index ID) or ranked history values, then the custom entry.
+    /// Authored choices or ranked history values with IDs separate from their text,
+    /// then the custom entry.
     public func dropdownOptions(for placeholder: Placeholder) -> [PlaceholderFieldOption] {
         let custom: PlaceholderFieldOption
         var options: [PlaceholderFieldOption]
@@ -181,7 +182,7 @@ public struct PlaceholderFormModel: Sendable, Hashable {
                 id: PlaceholderFormChoices.customValueMarker, title: "Enter custom value…", isCustomEntry: true)
         } else {
             options = (historySuggestions[placeholder.key] ?? []).map {
-                PlaceholderFieldOption(id: $0, title: $0, isCustomEntry: false)
+                PlaceholderFieldOption(id: Self.historyOptionID($0), title: $0, isCustomEntry: false)
             }
             custom = PlaceholderFieldOption(
                 id: PlaceholderFormChoices.customValueMarker, title: "Enter new value...", isCustomEntry: true)
@@ -220,7 +221,7 @@ public struct PlaceholderFormModel: Sendable, Hashable {
         errors[key] = nil
     }
 
-    /// Applies a dropdown pick; an unknown authored option ID is ignored.
+    /// Applies a dropdown pick; an unknown option ID is ignored.
     public mutating func selectOption(_ optionID: String, for placeholder: Placeholder) {
         let key = placeholder.key
         if let choices = placeholder.choices, !choices.isEmpty {
@@ -232,14 +233,17 @@ public struct PlaceholderFormModel: Sendable, Hashable {
             useCustomInput[key] = state.useCustomInput
             formValues[key] = state.formValue
         } else {
-            dropdownSelections[key] = optionID
             if optionID == PlaceholderFormChoices.customValueMarker {
                 useCustomInput[key] = true
                 formValues[key] = customValues[key] ?? ""
             } else {
+                guard let value = historySuggestions[key]?.first(where: { Self.historyOptionID($0) == optionID }) else {
+                    return
+                }
                 useCustomInput[key] = false
-                formValues[key] = optionID
+                formValues[key] = value
             }
+            dropdownSelections[key] = optionID
         }
         errors[key] = nil
     }
@@ -264,7 +268,7 @@ public struct PlaceholderFormModel: Sendable, Hashable {
             customValues[key] = defaultValue
             if !suggestions.isEmpty {
                 let useSuggestion = !defaultValue.isEmpty && suggestions.contains(defaultValue)
-                dropdownSelections[key] = useSuggestion ? defaultValue : PlaceholderFormChoices.customValueMarker
+                dropdownSelections[key] = useSuggestion ? Self.historyOptionID(defaultValue) : PlaceholderFormChoices.customValueMarker
                 useCustomInput[key] = !useSuggestion
             }
             if PlaceholderFormChoices.isWrapper(placeholder) {
@@ -309,6 +313,12 @@ public struct PlaceholderFormModel: Sendable, Hashable {
         var result = values
         for (key, enabled) in enabledOptionals where !enabled { result[key] = "" }
         return result
+    }
+
+    /// Prefix every value, including values that already contain this prefix,
+    /// so arbitrary saved text can never become the custom-entry sentinel.
+    private static func historyOptionID(_ value: String) -> String {
+        "__HISTORY_VALUE__" + value
     }
 
     private func guardMapped(_ values: [String: String]) -> [String: String] {

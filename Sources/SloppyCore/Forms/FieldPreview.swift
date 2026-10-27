@@ -33,7 +33,7 @@ public enum FieldPreview {
         switch placeholder.defaultValue {
         case nil: return "Optional — leave blank to omit."
         case "": return "Empty → renders as empty string."
-        case let defaultValue?: return "Empty → uses default: \"\(defaultValue)\""
+        case let defaultValue?: return "Default: \"\(defaultValue)\" • Use Defaults to restore; leave blank to omit."
         }
     }
 

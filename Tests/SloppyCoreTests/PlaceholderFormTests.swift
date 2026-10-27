@@ -224,6 +224,10 @@ private func choicePlaceholder(
         m.placeholders.first { $0.key == key }!
     }
 
+    private func historyOptionID(_ m: PlaceholderFormModel, _ key: String, _ value: String) -> String {
+        m.dropdownOptions(for: placeholder(m, key)).first { !$0.isCustomEntry && $0.title == value }!.id
+    }
+
     @Test func prefillsLastUsedValueAndRanksSuggestions() {
         let m = model("Hi {{name}}", history: ["name": [
             value("Bob", uses: 500, daysAgo: 10), value("Ada", uses: 1, daysAgo: 0),
@@ -231,7 +235,7 @@ private func choicePlaceholder(
         #expect(m.value(for: "name") == "Ada")
         #expect(m.prefilledKeys == ["name"])
         #expect(m.historySuggestions["name"] == ["Bob", "Ada"])
-        #expect(m.dropdownSelection(for: "name") == "Ada")
+        #expect(m.dropdownSelection(for: "name") == historyOptionID(m, "name", "Ada"))
         #expect(!m.showsCustomInput(placeholder(m, "name")))
         #expect(m.control(for: placeholder(m, "name")) == .dropdown)
         #expect(m.title(for: placeholder(m, "name")) == "name * (↻ last used)")
@@ -256,7 +260,7 @@ private func choicePlaceholder(
         #expect(m.customValue(for: "name") == "Ada")
         #expect(m.prepareSubmission()?.content == "Hello Ada")
 
-        m.selectOption("Bob", for: name)
+        m.selectOption(historyOptionID(m, "name", "Bob"), for: name)
         m.selectOption(Choices.customValueMarker, for: name)
         #expect(m.prepareSubmission()?.content == "Hello Ada")
     }
@@ -277,6 +281,65 @@ private func choicePlaceholder(
         let m = model("{{a}} {{b}}", history: ["a": [value("x", daysAgo: 1)]])
         #expect(m.summary(mode: .copy) == "1 of 2 fields pre-filled from history — review and submit.")
         #expect(m.filledRequiredCount == 1)
+    }
+
+    @Test func optionalHistoryDoesNotCountAsRequiredPrefill() {
+        let m = model("{{required}} {{optional|fallback}}", history: [
+            "optional": [value("remembered", daysAgo: 0)],
+        ])
+        #expect(m.filledRequiredCount == 0)
+        #expect(m.summary(mode: .paste) == nil)
+        #expect(m.title(for: placeholder(m, "optional")).contains("last used"))
+    }
+
+    @Test func requiredPrefillSummaryExcludesOptionalHistory() {
+        let m = model("{{required}} {{optional|fallback}}", history: [
+            "required": [value("Ada", daysAgo: 0)],
+            "optional": [value("remembered", daysAgo: 0)],
+        ])
+        #expect(m.summary(mode: .paste) == "All 1 field pre-filled from history — submit to paste.")
+    }
+
+    @Test func historyValuesCannotCollideWithCustomEntry() throws {
+        let saved = [Choices.customValueMarker, "__HISTORY_VALUE____CUSTOM_VALUE__"]
+        var m = model("{{k}}", history: ["k": saved.map { value($0, daysAgo: 0) }])
+        let k = placeholder(m, "k")
+        let options = m.dropdownOptions(for: k)
+        #expect(Set(options.map(\.id)).count == options.count)
+        #expect(m.dropdownSelection(for: "k") != Choices.customValueMarker)
+
+        m.selectOption(Choices.customValueMarker, for: k)
+        m.setCustomValue("k", "typed")
+        for savedValue in saved {
+            let option = try #require(options.first { !$0.isCustomEntry && $0.title == savedValue })
+            m.selectOption(option.id, for: k)
+            #expect(!m.showsCustomInput(k))
+            #expect(m.prepareSubmission()?.content == savedValue)
+        }
+        m.selectOption(Choices.customValueMarker, for: k)
+        #expect(m.showsCustomInput(k))
+        #expect(m.prepareSubmission()?.content == "typed")
+    }
+
+    @Test func useDefaultsCanSelectHistoryValueMatchingCustomMarker() {
+        var m = model("{{k|__CUSTOM_VALUE__}}", history: [
+            "k": [value(Choices.customValueMarker, daysAgo: 0)],
+        ])
+        m.setCustomValue("k", "typed")
+        m.useDefaults()
+        #expect(m.dropdownSelection(for: "k") != Choices.customValueMarker)
+        #expect(!m.showsCustomInput(placeholder(m, "k")))
+        #expect(m.prepareSubmission()?.content == Choices.customValueMarker)
+    }
+
+    @Test func clearingDefaultOmitsValueAndHintExplainsHowToRestoreIt() {
+        var m = model("Hello {{name|Alice}}")
+        let name = placeholder(m, "name")
+        m.setCustomValue("name", "")
+        #expect(m.prepareSubmission()?.content == "Hello ")
+        #expect(m.fieldPreview(for: name) == "Default: \"Alice\" • Use Defaults to restore; leave blank to omit.")
+        m.useDefaults()
+        #expect(m.prepareSubmission()?.content == "Hello Alice")
     }
 
     @Test func wrapperEnablementFollowsHistoryOrDefault() {
@@ -313,7 +376,7 @@ private func choicePlaceholder(
         #expect(m.value(for: "k") == "")
         #expect(m.showsCustomInput(k))
         m.setCustomValue("k", "new")
-        m.selectOption("old", for: k)
+        m.selectOption(historyOptionID(m, "k", "old"), for: k)
         #expect(m.value(for: "k") == "old")
         #expect(!m.showsCustomInput(k))
         m.selectOption(PlaceholderFormChoices.customValueMarker, for: k)
@@ -361,7 +424,7 @@ private func choicePlaceholder(
         var m = model("{{req}} {{opt|dflt}} {{(:w:)}} {{tone[A|B]|B}} {{#if g}}G{{/if}}",
             history: ["req": [value("r", daysAgo: 1)], "opt": [value("dflt", daysAgo: 2), value("h", daysAgo: 1)]])
         m.setCustomValue("req", "typed")
-        m.selectOption("h", for: placeholder(m, "opt"))
+        m.selectOption(historyOptionID(m, "opt", "h"), for: placeholder(m, "opt"))
         m.setEnabled("w", true)
         m.selectOption(PlaceholderFormChoices.authoredChoiceOptionID(0), for: placeholder(m, "tone"))
         m.setEnabled("g", true)
@@ -369,7 +432,7 @@ private func choicePlaceholder(
         m.useDefaults()
         #expect(m.value(for: "req") == "typed")
         #expect(m.value(for: "opt") == "dflt")
-        #expect(m.dropdownSelection(for: "opt") == "dflt")
+        #expect(m.dropdownSelection(for: "opt") == historyOptionID(m, "opt", "dflt"))
         #expect(!m.showsCustomInput(placeholder(m, "opt")))
         #expect(!m.isEnabled(placeholder(m, "w")))
         #expect(m.value(for: "tone") == "B")

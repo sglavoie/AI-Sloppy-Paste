@@ -78,7 +78,7 @@ import Testing
 
     @Test func optionalWithDefault() {
         #expect(preview(placeholder("name", defaultValue: "Alice"), "Hello {{name|Alice}}")
-            == "Empty → uses default: \"Alice\"")
+            == "Default: \"Alice\" • Use Defaults to restore; leave blank to omit.")
     }
 
     @Test func optionalWithEmptyDefault() {

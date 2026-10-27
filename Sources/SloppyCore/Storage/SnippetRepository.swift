@@ -132,31 +132,48 @@ public struct SnippetRepository: Sendable, Hashable {
     }
 
     /// Renames `oldTag` and its descendants. Returns the number of snippets changed.
+    /// Rejects invalid resulting tags before changing any snippets.
     @discardableResult
-    public mutating func renameTag(_ oldTag: String, to newTag: String, now: Int64) -> Int {
-        retag(from: oldTag, to: newTag, now: now)
+    public mutating func renameTag(_ oldTag: String, to newTag: String, now: Int64) throws -> Int {
+        try retag(from: oldTag, to: newTag, now: now)
     }
 
     /// Merges `sourceTag` and its descendants into `targetTag`. Returns the number of snippets changed.
     @discardableResult
     public mutating func mergeTags(_ sourceTag: String, into targetTag: String, now: Int64) throws -> Int {
         guard sourceTag != targetTag else { throw StorageError.cannotMergeTagWithItself }
-        return retag(from: sourceTag, to: targetTag, now: now)
+        return try retag(from: sourceTag, to: targetTag, now: now)
     }
 
-    private mutating func retag(from source: String, to target: String, now: Int64) -> Int {
-        var affected = 0
+    private mutating func retag(from source: String, to target: String, now: Int64) throws -> Int {
+        let target = try Self.validatedTag(target)
+        var changes: [(index: Int, tags: [String])] = []
         for index in data.snippets.indices {
             let tags = data.snippets[index].tags
             guard tags.contains(where: { $0 == source || $0.hasPrefix(source + "/") }) else { continue }
             var seen = Set<String>()
-            data.snippets[index].tags = tags
-                .map { Self.replacePrefix($0, source: source, target: target).lowercased() }
+            let updatedTags = try tags
+                .map { tag in
+                    guard tag == source || tag.hasPrefix(source + "/") else { return tag }
+                    return try Self.validatedTag(Self.replacePrefix(tag, source: source, target: target))
+                }
                 .filter { seen.insert($0).inserted }
-            data.snippets[index].updatedAt = now
-            affected += 1
+            changes.append((index, updatedTags))
         }
-        return affected
+        // Validate every descendant first so a failure cannot leave a partial rename.
+        for change in changes {
+            data.snippets[change.index].tags = change.tags
+            data.snippets[change.index].updatedAt = now
+        }
+        return changes.count
+    }
+
+    private static func validatedTag(_ tag: String) throws -> String {
+        let validation = Validation.validateTag(tag)
+        if let error = validation.error {
+            throw StorageError.invalidTag(tag: tag, reason: error)
+        }
+        return validation.normalizedValue ?? tag.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func replacePrefix(_ tag: String, source: String, target: String) -> String {

@@ -15,6 +15,17 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 }
 
 @Suite struct ProcessConditionalBlocksTests {
+    @Test(arguments: ["\n", "\r\n", "\r"])
+    func trimsWholeLineEndingsWithoutChangingBody(newline: String) {
+        let text = "Before\(newline){{#if show}}\(newline)First\(newline)Second\(newline){{#else}}\(newline)Hidden\(newline){{/else}}{{/if}}\(newline)After"
+        #expect(process(text, ["show": "yes"]) == "Before\(newline)First\(newline)Second\(newline)After")
+        #expect(process(text, ["show": ""]) == "Before\(newline)Hidden\(newline)After")
+        let nested = "{{#if outer}}\(newline)\(text)\(newline){{/if}}"
+        #expect(process(nested, ["outer": "yes", "show": "yes"]) == "Before\(newline)First\(newline)Second\(newline)After")
+        #expect(process("{{#if show}}\(newline)\(newline)Body\(newline)\(newline){{/if}}", ["show": "yes"])
+            == "\(newline)Body\(newline)")
+    }
+
     @Test(arguments: ["\t", "\n", "\r\n", "  "])
     func whitespaceAfterIfIsConsistentAcrossParsingAndRendering(separator: String) {
         let text = "{{#if\(separator)+show \"Show greeting\"}}Hello {{name}}{{#else}}Hidden{{/if}}"
@@ -205,6 +216,7 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 
 /// Outputs of the TS `replacePlaceholders(processConditionalBlocks(t, v), v, extractPlaceholders(t))`
 /// under Node 24, covering wrappers with empty values, emoji, CJK and CRLF.
+/// CRLF cleanup intentionally fixes the legacy renderer's split line endings.
 @Suite struct RenderPipelineGoldenTests {
     static let cases: [(String, [String: String], String)] = [
         ("{{#if 名前}}こんにちは {{名前}}{{#else}}やあ{{/if}}", ["名前": "太郎"], "こんにちは 太郎"),
@@ -212,7 +224,7 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
         ("👋\n{{#if e}}\n🎉 {{e}}\n{{/if}}\n👍", ["e": "🚀"], "👋\n🎉 🚀\n👍"),
         ("👋\n{{#if e}}\n🎉 {{e}}\n{{/if}}\n👍", ["e": ""], "👋\n\n👍"),
         (#"{{#if +ok "✅ Include"}}👨‍👩‍👧 family{{/if}}"#, ["ok": "true"], "👨‍👩‍👧 family"),
-        ("a\r\n{{#if k}}\r\nX\r\n{{/if}}\r\nb", ["k": "1"], "a\r\n\r\nX\r\r\nb"),
+        ("a\r\n{{#if k}}\r\nX\r\n{{/if}}\r\nb", ["k": "1"], "a\r\nX\r\nb"),
         ("a\r\n{{#if k}}\r\nX\r\n{{/if}}\r\nb", ["k": ""], "a\r\n\r\nb"),
         ("Hi{{ :name:}}!{{#if name}} 🙂{{/if}}", ["name": ""], "Hi!"),
         ("Hi{{ :name:}}!{{#if name}} 🙂{{/if}}", ["name": "  "], "Hi!"),

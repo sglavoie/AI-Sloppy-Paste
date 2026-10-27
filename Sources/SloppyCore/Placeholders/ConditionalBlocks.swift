@@ -71,12 +71,22 @@ public enum ConditionalBlocks {
         return key
     }
 
-    /// JS `.replace(/^\n/, "").replace(/\n$/, "")`, on scalars so a trailing
-    /// `\r\n` loses only its `\n`.
+    /// Remove one complete line ending at each edge, preserving interior
+    /// line endings and adjacent combining marks. CRLF is one line ending.
     private static func stripOuterNewlines(_ body: String) -> String {
         var scalars = body.unicodeScalars
-        if scalars.first == "\n" { scalars.removeFirst() }
-        if scalars.last == "\n" { scalars.removeLast() }
+        if scalars.first == "\r" {
+            scalars.removeFirst()
+            if scalars.first == "\n" { scalars.removeFirst() }
+        } else if scalars.first == "\n" {
+            scalars.removeFirst()
+        }
+        if scalars.last == "\n" {
+            scalars.removeLast()
+            if scalars.last == "\r" { scalars.removeLast() }
+        } else if scalars.last == "\r" {
+            scalars.removeLast()
+        }
         return String(scalars)
     }
 

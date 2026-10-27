@@ -131,6 +131,37 @@ import Testing
 }
 
 @Suite struct SnippetRepositoryTagTests {
+    @Test(arguments: ["a/b/c/d/e", String(repeating: "x", count: 48)], [false, true])
+    func retagRejectsInvalidDescendantsWithoutPartialChanges(target: String, merge: Bool) throws {
+        var r = repo([["work"], ["work/child"], [target]])
+        let before = r
+        #expect(Validation.validateTag(target).isValid)
+        let invalidTag = target + "/child"
+        let reason = try #require(Validation.validateTag(invalidTag).error)
+        #expect(throws: StorageError.invalidTag(tag: invalidTag, reason: reason)) {
+            if merge {
+                try r.mergeTags("work", into: target, now: 2)
+            } else {
+                try r.renameTag("work", to: target, now: 2)
+            }
+        }
+        #expect(r == before)
+    }
+
+    @Test(arguments: ["a/b/c/d", String(repeating: "x", count: 44)], [false, true])
+    func retagAllowsDescendantsAtValidationLimits(target: String, merge: Bool) throws {
+        var r = repo([["work"], ["work/child"], [target]])
+        let affected = if merge {
+            try r.mergeTags("work", into: target, now: 2)
+        } else {
+            try r.renameTag("work", to: target, now: 2)
+        }
+        #expect(affected == 2)
+        #expect(r.snippets.map(\.tags) == [[target], [target + "/child"], [target]])
+        #expect(r.snippets.map(\.updatedAt) == [2, 2, 1])
+        #expect(r.snippets.allSatisfy { SnippetDraft(snippet: $0).errors.isEmpty })
+    }
+
     func repo(_ tagLists: [[String]]) -> SnippetRepository {
         var repo = SnippetRepository()
         for (index, tags) in tagLists.enumerated() {
@@ -185,9 +216,9 @@ import Testing
     ] as [([[String]], String, String, Int, [[String]])])
     func renameTagCascadesToDescendants(
         tagLists: [[String]], from: String, to: String, affected: Int, expected: [[String]]
-    ) {
+    ) throws {
         var r = repo(tagLists)
-        let count = r.renameTag(from, to: to, now: 2)
+        let count = try r.renameTag(from, to: to, now: 2)
         #expect(count == affected)
         #expect(r.snippets.map(\.tags) == expected)
     }
@@ -221,7 +252,7 @@ import Testing
 
     @Test func operationsInSequence() throws {
         var r = repo([["work", "urgent"], ["work", "important"]])
-        r.renameTag("work", to: "office", now: 2)
+        try r.renameTag("work", to: "office", now: 2)
         r.deleteTag("urgent", now: 3)
         try r.mergeTags("important", into: "office", now: 4)
         #expect(r.tags == ["office"])

@@ -4,6 +4,7 @@ public enum StorageError: Error, Equatable, LocalizedError {
     case unsupportedStorageVersion(Int)
     case snippetNotFound
     case cannotMergeTagWithItself
+    case invalidTag(tag: String, reason: String)
     case emptyPlaceholderValue
     case placeholderKeyNotFound
     case placeholderValueNotFound
@@ -15,6 +16,7 @@ public enum StorageError: Error, Equatable, LocalizedError {
             "Storage version \(version) is newer than supported version \(StorageConstants.currentVersion). Update Sloppy Paste to open this file. The file has been left unchanged."
         case .snippetNotFound: "Snippet not found"
         case .cannotMergeTagWithItself: "Cannot merge a tag with itself"
+        case .invalidTag(let tag, let reason): "Cannot use tag \"\(tag)\": \(reason). No tags were changed."
         case .emptyPlaceholderValue: "New value cannot be empty"
         case .placeholderKeyNotFound: "Placeholder key not found"
         case .placeholderValueNotFound: "Value not found"

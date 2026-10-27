@@ -71,7 +71,7 @@ struct RenameTagView: View {
         store.reloadIfChanged()
         do {
             let affected = try store.mutate { repository, now in
-                repository.renameTag(tag, to: normalized, now: now)
+                try repository.renameTag(tag, to: normalized, now: now)
             }
             navigator.pop()
             toasts.success("Tag renamed", message: "Updated \(affected) snippet\(affected == 1 ? "" : "s")")

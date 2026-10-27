@@ -53,6 +53,35 @@ import Testing
             == ["has"])
     }
 
+    @Test(arguments: SystemPlaceholders.names)
+    func modifiedSystemNamesRemainUserFieldsForLastValues(key: String) throws {
+        let s = snippet("{{DATE}} {{!\(key)}} {{name}}")
+        let values = history([key: "custom", "name": "Ada"])
+        #expect(SnippetPreparation.requiredUserKeys(in: s.content, now: Self.now) == [key, "name"])
+        #expect(SnippetPreparation.lastValuesAvailability(for: s, history: history(["name": "Ada"]),
+            now: Self.now) == .unavailable)
+        #expect(throws: MissingPlaceholderHistoryError(placeholderKey: key)) {
+            try SnippetPreparation.prepareWithLastValues(s, history: history(["name": "Ada"]), now: Self.now)
+        }
+        let prepared = try SnippetPreparation.prepareWithLastValues(s, history: values,
+            now: Self.now, timeZone: Self.utc)
+        #expect(prepared.content == "2024-03-15 custom Ada")
+        guard case .form(let request) = SnippetPreparation.plan(for: s, now: Self.now, timeZone: Self.utc) else {
+            Issue.record("Expected a form for user placeholders")
+            return
+        }
+        var form = PlaceholderFormModel(snippetContent: request.snippet.content,
+            placeholders: request.placeholders, history: values, now: Self.now)
+        #expect(prepared == form.prepareSubmission())
+    }
+
+    @Test func lastValuesTracksOptionalUserFieldsNamedLikeSystemPlaceholders() throws {
+        let prepared = try SnippetPreparation.prepareWithLastValues(
+            snippet("{{name}} {{DATE|later}}"), history: history(["name": "Ada"]), now: Self.now)
+        #expect(prepared.content == "Ada later")
+        #expect(prepared.placeholderValues == [.init(key: "name", value: "Ada"), .init(key: "DATE", value: "later")])
+    }
+
     @Test func prepareWithLastValuesFillsRequiredAndDefaults() throws {
         let values: PlaceholderHistory = ["name": [
             PlaceholderHistoryValue(value: "Old", useCount: 9, lastUsed: 1, createdAt: 1),

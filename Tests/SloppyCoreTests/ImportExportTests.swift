@@ -94,6 +94,32 @@ import Testing
         #expect(data.snippets.map(\.title) == ["A"])
     }
 
+    @Test func replaceSkipsRepeatedIdsAndKeepsTheFirstSnippet() throws {
+        let imported = try payload(#"[{"id": "dup", "title": "A", "content": "a"}, {"id": "dup", "title": "B", "content": "b"}, {"id": "other", "title": "C", "content": "c"}]"#)
+        let data = ImportExport.replace(with: imported)
+        #expect(data.snippets.map(\.id) == ["dup", "other"])
+        #expect(data.snippets.map(\.content) == ["a", "c"])
+        #expect(ImportSummary(imported, current: .empty, mode: .replace).importedCount == 2)
+        var repository = SnippetRepository(data: data)
+        repository.deleteSnippet(id: "dup")
+        #expect(repository.snippets.map(\.id) == ["other"])
+    }
+
+    @Test func replaceDeduplicatesHistoryAndKeepsRecentValuesWithinTheLimit() {
+        let limit = StorageConstants.maxStoredValuesPerKey
+        let values = (0...limit).map {
+            PlaceholderHistoryValue(value: "value\($0)", useCount: 1, lastUsed: Int64($0), createdAt: 0)
+        }
+        let imported = ImportPayload(snippets: [], placeholderHistory: ["k": values + [values.last!]])
+        let data = ImportExport.replace(with: imported)
+        let stored = data.placeholderHistory["k"] ?? []
+        #expect(stored.count == limit)
+        #expect(Set(stored.map(\.value)).count == limit)
+        #expect(stored.first == values.last)
+        #expect(!stored.contains(values[0]))
+        #expect(ImportExport.replace(with: imported) == ImportExport.merge(imported, into: .empty))
+    }
+
     @Test func exportThenReplaceImportRoundTrips() throws {
         let original = StorageData(
             snippets: [

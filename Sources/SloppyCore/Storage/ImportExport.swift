@@ -76,13 +76,9 @@ public enum ImportExport {
     }
 
     /// Replaces everything with the import; the stored `tags` list is reset.
+    /// Uses the same first-occurrence deduplication and history limits as merge.
     public static func replace(with payload: ImportPayload) -> StorageData {
-        StorageData(
-            version: StorageConstants.currentVersion,
-            snippets: payload.snippets.map { $0.normalized() },
-            tags: [],
-            placeholderHistory: payload.placeholderHistory ?? [:]
-        )
+        merge(payload, into: .empty)
     }
 }
 

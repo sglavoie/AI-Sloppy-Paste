@@ -90,12 +90,12 @@ public enum SnippetPreparation {
         }
     }
 
-    /// Required user keys (system names excluded) after resolving system placeholders.
+    /// Required user keys after resolving system placeholders. Modified forms
+    /// such as `{{!DATE}}` remain user fields even when their key is a system name.
     public static func requiredUserKeys(in content: String, now: Int64, timeZone: TimeZone = .current) -> [String] {
-        let systemKeys = Set(SystemPlaceholders.names)
         let processed = SystemPlaceholders.process(content, now: now, timeZone: timeZone)
         return PlaceholderSyntaxParser.extractPlaceholders(processed)
-            .filter { $0.isRequired && !systemKeys.contains($0.key) }
+            .filter(\.isRequired)
             .map(\.key)
     }
 
@@ -133,12 +133,11 @@ public enum SnippetPreparation {
         now: Int64,
         timeZone: TimeZone = .current
     ) throws(MissingPlaceholderHistoryError) -> PreparedSnippet {
-        let systemKeys = Set(SystemPlaceholders.names)
         let processed = SystemPlaceholders.process(snippet.content, now: now, timeZone: timeZone)
         let placeholders = PlaceholderSyntaxParser.extractPlaceholders(processed)
         var finalValues: [String: String] = [:]
 
-        for placeholder in placeholders where placeholder.isRequired && !systemKeys.contains(placeholder.key) {
+        for placeholder in placeholders where placeholder.isRequired {
             guard let lastValue = PlaceholderHistoryRanking.lastUsedValue(history[placeholder.key] ?? []) else {
                 throw MissingPlaceholderHistoryError(placeholderKey: placeholder.key)
             }
@@ -152,11 +151,10 @@ public enum SnippetPreparation {
             }
         }
 
-        let userPlaceholders = placeholders.filter { !systemKeys.contains($0.key) }
         let afterBlocks = ConditionalBlocks.process(processed, values: finalValues)
         return PreparedSnippet(
             content: PlaceholderRenderer.replacePlaceholders(afterBlocks, values: finalValues, placeholders: placeholders),
-            placeholderValues: trackedValues(userPlaceholders, finalValues: finalValues)
+            placeholderValues: trackedValues(placeholders, finalValues: finalValues)
         )
     }
 

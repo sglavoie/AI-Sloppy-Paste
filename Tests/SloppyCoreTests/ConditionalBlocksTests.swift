@@ -16,6 +16,19 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 
 @Suite struct ProcessConditionalBlocksTests {
     @Test(arguments: ["\n", "\r\n", "\r"])
+    func elseClosingTagOnItsOwnLineDoesNotLeak(newline: String) {
+        let text = "{{#if show}}\(newline)Yes\(newline){{#else}}\(newline)No\(newline){{/else}}\(newline)  {{/if}}"
+        #expect(process(text, ["show": "yes"]) == "Yes")
+        #expect(process(text, ["show": ""]) == "No")
+        #expect(process("Before\(newline)\(text)\(newline)After", ["show": ""])
+            == "Before\(newline)No\(newline)After")
+
+        let nested = "{{#if outer}}Outer{{#else}}\(newline)\(text)\(newline){{/else}}\(newline){{/if}}"
+        #expect(process(nested, ["outer": "", "show": ""]) == "No")
+        #expect(process(nested, ["outer": "", "show": "yes"]) == "Yes")
+    }
+
+    @Test(arguments: ["\n", "\r\n", "\r"])
     func trimsWholeLineEndingsWithoutChangingBody(newline: String) {
         let text = "Before\(newline){{#if show}}\(newline)First\(newline)Second\(newline){{#else}}\(newline)Hidden\(newline){{/else}}{{/if}}\(newline)After"
         #expect(process(text, ["show": "yes"]) == "Before\(newline)First\(newline)Second\(newline)After")
@@ -189,6 +202,15 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 }
 
 @Suite struct ExtractConditionalBlockBodiesTests {
+    @Test(arguments: ["\n", "\r\n", "\r"])
+    func separateElseClosingLineIsExcludedFromPreview(newline: String) throws {
+        let text = "{{#if show}}\(newline)Yes\(newline){{#else}}\(newline)No\(newline){{/else}}\(newline)  {{/if}}"
+        #expect(bodies(text, "show") == [.init(ifBody: "\(newline)Yes\(newline)", elseBody: "\(newline)No\(newline)")])
+        let guardField = try #require(extract(text).first)
+        #expect(FieldPreview.build(guardField, snippetContent: text, currentValue: "")
+            == "Toggles: \"Yes\" • Else: \"No\"")
+    }
+
     static let cases: [(String, String, [ConditionalBlockBody])] = [
         ("{{#if k}}A{{/if}}", "k", [.init(ifBody: "A")]),
         ("{{#if k}}A{{#else}}B{{/if}}", "k", [.init(ifBody: "A", elseBody: "B")]),

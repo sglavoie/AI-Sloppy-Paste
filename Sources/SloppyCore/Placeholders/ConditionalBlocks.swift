@@ -27,7 +27,7 @@ public enum ConditionalBlocks {
     /// `PlaceholderRenderer.replacePlaceholders`.
     public static func process(_ text: String, values: [String: String]) -> String {
         // Bodies exclude nested if tags, so only leaf blocks match.
-        let leaf = /\{\{#if\s+([^}]+)\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{#else\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{\/else\}\})?)?\{\{\/if\}\}/
+        let leaf = /\{\{#if\s+([^}]+)\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{#else\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{\/else\}\}\s*)?)?\{\{\/if\}\}/
             .matchingSemantics(.unicodeScalar)
 
         var result = text
@@ -110,8 +110,10 @@ public enum ConditionalBlocks {
         for match in body.matches(of: token) {
             switch match.output {
             case "{{#else}}" where depth == 0:
-                var elseBody = String(body[match.range.upperBound...])
-                if elseBody.hasSuffix("{{/else}}") { elseBody.unicodeScalars.removeLast(9) }
+                // A closing else tag may be on its own line before /if.
+                // Ignore whitespace after the closer, preserving the body itself.
+                let elseBody = String(body[match.range.upperBound...])
+                    .replacing(/\{\{\/else\}\}\s*$/.matchingSemantics(.unicodeScalar), with: "")
                 return ConditionalBlockBody(ifBody: String(body[..<match.range.lowerBound]), elseBody: elseBody)
             case "{{#else}}": break
             case "{{/if}}": depth -= 1

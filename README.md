@@ -301,6 +301,10 @@ swift run sloppyctl --help
   `is:`, `not:`, quoted phrases, fuzzy words).
 - `render`: expand a snippet's placeholders with `key=value` pairs.
 
+For omitted choice values, `render` uses the authored default or the first
+choice, matching the form. Optional choice wrappers stay disabled without a
+nonempty default; an explicit `key=value` overrides that initial state.
+
 Every command takes `--data <path>` to work on a file other than the live one.
 `stats`, `search`, and `render --id` only read that file. They never rewrite,
 create, or quarantine it; malformed input reports an error. `import` retains

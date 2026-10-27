@@ -92,7 +92,9 @@ public enum ConditionalBlocks {
     }
 
     private static func matchingClose(in text: String, from start: String.Index) -> Range<String.Index>? {
-        let token = /\{\{#if\s|\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)
+        // Consume entire openers, including quoted labels, before looking for
+        // more control tags. A label may itself contain template examples.
+        let token = /\{\{#if\s+(?:[^}"]|"[^"]*")+\}\}|\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)
         var depth = 1
         for match in text[start...].matches(of: token) {
             if match.output == "{{/if}}" {
@@ -106,7 +108,7 @@ public enum ConditionalBlocks {
     }
 
     private static func splitTopLevelElse(_ body: String) -> ConditionalBlockBody {
-        let token = /\{\{#if\s|\{\{\/if\}\}|\{\{#else\}\}/.matchingSemantics(.unicodeScalar)
+        let token = /\{\{#if\s+(?:[^}"]|"[^"]*")+\}\}|\{\{\/if\}\}|\{\{#else\}\}/.matchingSemantics(.unicodeScalar)
         var depth = 0
         for match in body.matches(of: token) {
             switch match.output {

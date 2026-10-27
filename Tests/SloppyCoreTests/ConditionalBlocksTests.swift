@@ -15,6 +15,22 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 }
 
 @Suite struct ProcessConditionalBlocksTests {
+    @Test func placeholderSyntaxInsideGuardLabelDoesNotCreateFields() {
+        let text = #"{{#if +show "Include }} {{name}} and {{#if fake}}?"}}Hello{{/if}}"#
+        let placeholders = extract(text)
+        #expect(placeholders.map(\.key) == ["show"])
+        var form = PlaceholderFormModel(
+            snippetContent: text, placeholders: placeholders, history: [:], now: 0)
+        #expect(form.prepareSubmission()?.content == "Hello")
+    }
+
+    @Test func nestedGuardLabelsDoNotChangePreviewStructure() {
+        let inner = #"{{#if inner "Include {{/if}} {{#else}} {{#if fake}}?"}}Inside{{/if}}"#
+        let text = "{{#if outer}}Before \(inner) After{{#else}}Outside{{/if}}"
+        #expect(bodies(text, "outer") == [.init(ifBody: "Before \(inner) After", elseBody: "Outside")])
+        #expect(bodies(text, "fake").isEmpty)
+    }
+
     @Test(arguments: ["Include {name}?", "Include }?", "Include {{name}}?"])
     func bracesInLabelsStayOutOfRenderedContent(label: String) throws {
         let text = "{{#if +show \"\(label)\"}}Hello{{#else}}Hidden{{/if}}"

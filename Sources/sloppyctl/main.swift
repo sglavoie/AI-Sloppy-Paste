@@ -16,7 +16,8 @@ let usage = """
     import merges by default; --replace writes data.json.bak first.
     stats, search and render read data without modifying the input file.
     render resolves system placeholders, conditionals and values; keys not
-    given use their default, and guards use their `+` default.
+    given use their default (or first authored choice), and guards use their
+    `+` default. Optional choice wrappers follow the form's enabled state.
     search takes the picker syntax (tag:, not:tag:, ctx:, not:ctx:, is:, not:,
     "exact phrase", fuzzy words) and prints pinned rows first, then the rest in
     sort order, as tab-separated id, title and tags.
@@ -147,6 +148,9 @@ func renderValues(_ assignments: [String], placeholders: [Placeholder]) throws -
     for placeholder in placeholders where values[placeholder.key] == nil {
         if placeholder.isGuardOnly {
             values[placeholder.key] = placeholder.defaultOn ? "true" : ""
+        } else if PlaceholderFormChoices.hasAuthoredChoices(placeholder) {
+            let state = PlaceholderFormChoices.initialState(placeholder)
+            values[placeholder.key] = state.enabledOptional == false ? "" : state.formValue
         } else if let defaultValue = placeholder.defaultValue {
             values[placeholder.key] = defaultValue
         } else if placeholder.isRequired {

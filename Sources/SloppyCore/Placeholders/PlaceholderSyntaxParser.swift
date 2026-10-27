@@ -116,9 +116,10 @@ public enum PlaceholderSyntaxParser {
         var content: String
     }
 
-    /// Finds `{{…}}` expressions like the TS `/\{\{([^}]+)\}\}/g` scan.
+    /// Finds `{{…}}` expressions, consuming quoted conditional labels as a
+    /// unit so braces and template examples in a label never become fields.
     static func scanExpressions(_ text: String) -> [ScannedExpression] {
-        let regex = /\{\{([^}]+)\}\}/.matchingSemantics(.unicodeScalar)
+        let regex = /\{\{(#if\s+(?:[^}"]|"[^"]*")+|[^}]+)\}\}/.matchingSemantics(.unicodeScalar)
         return text.matches(of: regex).map { match in
             let start = text.utf16.distance(from: text.startIndex, to: match.range.lowerBound)
             let length = text.utf16.distance(from: match.range.lowerBound, to: match.range.upperBound)

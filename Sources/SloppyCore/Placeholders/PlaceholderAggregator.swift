@@ -24,7 +24,8 @@ public enum PlaceholderAggregator {
 
         // Preserve the established guard-only second pass and ordering.
         let ifRegex = /\{\{#if\s+(\+?)(\S+?)(?:\s+"([^"]*)")?\s*\}\}/.matchingSemantics(.unicodeScalar)
-        for match in text.matches(of: ifRegex) {
+        for expression in PlaceholderSyntaxParser.scanExpressions(text) {
+            guard let match = expression.raw.wholeMatch(of: ifRegex) else { continue }
             let key = String(match.output.2).trimmed
             if key.isEmpty || indexByKey[key] != nil { continue }
             indexByKey[key] = placeholders.count

@@ -115,7 +115,7 @@ import Testing
         #expect(firstEntered.wait(timeout: .now() + 5) == .success)
         DispatchQueue.global().async {
             secondAttempting.signal()
-            try? file.withExclusiveLock { secondEntered.signal() }
+            _ = try? file.withExclusiveLock { secondEntered.signal() }
         }
         #expect(secondAttempting.wait(timeout: .now() + 5) == .success)
         #expect(secondEntered.wait(timeout: .now() + 0.1) == .timedOut)

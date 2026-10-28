@@ -60,14 +60,14 @@ final class SnippetStore {
         watcher = FileWatcher(url: file.url) { [weak self] in
             // A write notification is sufficient evidence of a change even
             // when an editor or sync tool preserves the modification date.
-            try? self?.requireCurrentData()
+            _ = try? self?.requireCurrentData()
         }
     }
 
     /// Reloads when the file changed on disk since the last load or save.
     func reloadIfChanged() {
         guard !hasLoaded || loadFailure != nil || currentModificationDate() != loadedModificationDate else { return }
-        try? requireCurrentData()
+        _ = try? requireCurrentData()
     }
 
     /// Always reads before deriving data that will be written back to disk.

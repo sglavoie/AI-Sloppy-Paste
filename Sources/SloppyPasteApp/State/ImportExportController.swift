@@ -73,9 +73,9 @@ final class ImportExportController {
                 return
             }
             let current = store.data
-            guard let mode = askImportMode(payload, fileName: url.lastPathComponent) else { return }
-            let summary = ImportSummary(payload, current: current, mode: mode)
             do {
+                guard let mode = try askImportMode(payload, fileName: url.lastPathComponent) else { return }
+                let summary = try ImportSummary(payload, current: current, mode: mode)
                 try store.importPayload(payload, mode: mode, expectedCurrent: current)
                 hud.show("Import successful", message: summary.resultMessage, symbol: "square.and.arrow.down")
             } catch {
@@ -89,8 +89,8 @@ final class ImportExportController {
         "Using \(Formatting.size(store.file.size())) for \(ImportSummary.snippets(store.snippets.count))"
     }
 
-    private func askImportMode(_ payload: ImportPayload, fileName: String) -> ImportMode? {
-        let merge = ImportSummary(payload, current: store.data, mode: .merge)
+    private func askImportMode(_ payload: ImportPayload, fileName: String) throws -> ImportMode? {
+        let merge = try ImportSummary(payload, current: store.data, mode: .merge)
         let alert = NSAlert()
         alert.messageText = "Import \(ImportSummary.snippets(merge.fileCount)) from \"\(fileName)\"?"
         alert.informativeText = """

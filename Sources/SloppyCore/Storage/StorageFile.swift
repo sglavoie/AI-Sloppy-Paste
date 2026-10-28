@@ -152,11 +152,12 @@ public struct StorageFile: Sendable, Hashable {
         _ payload: ImportPayload, into current: StorageData, mode: ImportMode,
         ifUnchangedFrom snapshot: Snapshot? = nil
     ) throws -> StorageData {
+        try ImportExport.validate(payload)
         if let snapshot { try verifyUnchanged(snapshot) }
         if mode == .replace {
             try writeBackup()
         }
-        let next = ImportExport.apply(payload, to: current, mode: mode)
+        let next = try ImportExport.apply(payload, to: current, mode: mode)
         if let snapshot { try verifyUnchanged(snapshot) }
         try save(next)
         return next

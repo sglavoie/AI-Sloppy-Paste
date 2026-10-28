@@ -55,8 +55,28 @@ import SloppyCore
         #expect(empty.closeCount == 1)
     }
 
+    @Test func failedDeleteKeepsTheCurrentSelection() async throws {
+        let picker = try Harness(query: "")
+        defer { picker.close() }
+        await picker.settle()
+        try picker.press(kVK_DownArrow)
+        await picker.settle()
+        let selected = try picker.highlightCenter()
+
+        try picker.action("delete")
+        await picker.settle()
+        try Data("{unfinished".utf8).write(to: picker.file.url)
+        try picker.action("confirmDelete")
+        await picker.settle()
+
+        #expect(try picker.highlightCenter() == selected)
+        #expect(picker.store.lastError != nil)
+    }
+
     @MainActor private final class Harness {
         let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let file: StorageFile
+        let store: SnippetStore
         let defaults: UserDefaults
         let suite = UUID().uuidString
         let window: NSWindow
@@ -80,9 +100,9 @@ import SloppyCore
                         lastUsedAt: lastUsed,
                         isPinned: index == 4)
             }
-            let file = StorageFile(url: directory.appending(path: "data.json"))
+            file = StorageFile(url: directory.appending(path: "data.json"))
             try file.save(StorageData(snippets: snippets))
-            let store = SnippetStore(file: file, now: { now })
+            store = SnippetStore(file: file, now: { now })
             store.load()
             let navigator = Navigator()
             let counter = counter

@@ -6,7 +6,7 @@ import Testing
     @Test func recordingUseAtMaximumCountStillUpdatesTimestampsAndHistory() throws {
         let json = #"{"snippets":[{"id":"a","title":"A","content":"{{name}}","useCount":\#(Int.max)}],"placeholderHistory":{"name":[{"value":"Ada","useCount":\#(Int.max),"lastUsed":1,"createdAt":1}]}}"#
         let payload = try ImportExport.decodeImport(Data(json.utf8))
-        var repository = SnippetRepository(data: ImportExport.replace(with: payload))
+        var repository = SnippetRepository(data: try ImportExport.replace(with: payload))
 
         try repository.recordUse(id: "a", placeholderValues: [.init(key: "name", value: "Ada")], now: 42)
 

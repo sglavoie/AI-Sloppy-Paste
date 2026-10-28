@@ -139,10 +139,19 @@ public enum StorageMigrations {
             try requireSupportedVersion(version)
         } else if let version = try? container.decode(String.self, forKey: key) {
             let components = version.split(separator: ".", omittingEmptySubsequences: false)
-            guard components.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy { $0 >= 48 && $0 <= 57 } }),
-                let major = components.first.flatMap({ Int($0) })
+            guard (1...3).contains(components.count),
+                components.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy { $0 >= 48 && $0 <= 57 } })
             else { throw StorageError.invalidStorageVersion }
-            try requireSupportedVersion(major)
+            let numbers = try components.map { component -> Int in
+                guard let number = Int(component) else { throw StorageError.invalidStorageVersion }
+                return number
+            }
+            try requireSupportedVersion(numbers[0])
+            let minor = numbers.count > 1 ? numbers[1] : 0
+            let patch = numbers.count > 2 ? numbers[2] : 0
+            if numbers[0] == StorageConstants.currentVersion && (minor > 0 || patch > 0) {
+                throw StorageError.unsupportedExportVersion(version)
+            }
         } else {
             throw StorageError.invalidStorageVersion
         }

@@ -31,6 +31,18 @@ public struct ImportPayload: Decodable, Sendable, Hashable {
         }
         snippets = try c.decode([LegacySnippet].self, forKey: .snippets)
         placeholderHistory = try c.decodeIfPresent(PlaceholderHistory.self, forKey: .placeholderHistory)
+        try ImportExport.validate(self)
+    }
+}
+
+public enum ImportValidationError: Error, Sendable, Equatable, LocalizedError {
+    case duplicateSnippetID(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .duplicateSnippetID(let id):
+            "The import contains more than one snippet with ID \"\(id)\". No snippets were imported."
+        }
     }
 }
 
@@ -74,6 +86,13 @@ public enum ImportMode: String, Sendable, CaseIterable {
 }
 
 public enum ImportExport {
+    public static func validate(_ payload: ImportPayload) throws {
+        var ids = Set<String>()
+        for snippet in payload.snippets where !ids.insert(snippet.id).inserted {
+            throw ImportValidationError.duplicateSnippetID(snippet.id)
+        }
+    }
+
     public static func makeExport(_ data: StorageData, now: Int64) -> ExportData {
         ExportData(
             version: "\(StorageConstants.currentVersion).0.0",
@@ -92,16 +111,17 @@ public enum ImportExport {
         try JSONDecoder().decode(ImportPayload.self, from: json)
     }
 
-    public static func apply(_ payload: ImportPayload, to current: StorageData, mode: ImportMode) -> StorageData {
+    public static func apply(_ payload: ImportPayload, to current: StorageData, mode: ImportMode) throws -> StorageData {
         switch mode {
-        case .merge: merge(payload, into: current)
-        case .replace: replace(with: payload)
+        case .merge: try merge(payload, into: current)
+        case .replace: try replace(with: payload)
         }
     }
 
     /// Adds imported snippets whose id is not already stored (so importing the
     /// same file twice adds nothing) and merges placeholder history.
-    public static func merge(_ payload: ImportPayload, into current: StorageData) -> StorageData {
+    public static func merge(_ payload: ImportPayload, into current: StorageData) throws -> StorageData {
+        try validate(payload)
         var ids = Set(current.snippets.map(\.id))
         let newSnippets = payload.snippets
             .filter { ids.insert($0.id).inserted }
@@ -116,9 +136,9 @@ public enum ImportExport {
     }
 
     /// Replaces everything with the import; the stored `tags` list is reset.
-    /// Uses the same first-occurrence deduplication and history limits as merge.
-    public static func replace(with payload: ImportPayload) -> StorageData {
-        merge(payload, into: .empty)
+    /// Rejects duplicate IDs and uses the same history limits as merge.
+    public static func replace(with payload: ImportPayload) throws -> StorageData {
+        try merge(payload, into: .empty)
     }
 }
 
@@ -132,11 +152,11 @@ public struct ImportSummary: Sendable, Hashable {
     /// Snippets currently stored.
     public var currentCount: Int
 
-    public init(_ payload: ImportPayload, current: StorageData, mode: ImportMode) {
+    public init(_ payload: ImportPayload, current: StorageData, mode: ImportMode) throws {
         self.mode = mode
         fileCount = payload.snippets.count
         currentCount = current.snippets.count
-        importedCount = ImportExport.apply(payload, to: current, mode: mode).snippets.count
+        importedCount = try ImportExport.apply(payload, to: current, mode: mode).snippets.count
             - (mode == .merge ? current.snippets.count : 0)
     }
 

@@ -257,6 +257,9 @@ It uses the same `StorageData` JSON shape as the Raycast extension's export.
   changing existing data. Update Sloppy Paste to a version that supports it.
 - Imports using the current export version reject malformed snippet fields;
   older exports retain legacy field conversion.
+- Imports reject files containing multiple snippets with the same ID, so no
+  snippet is silently dropped. Replace leaves the current file and backup
+  untouched when this validation fails.
 - On startup, an incomplete or undecodable file is never overwritten. It is
   moved aside as `data.corrupt-<timestamp>.json`, the app starts empty, and an
   alert explains how to restore it. A current-version file with a field of the

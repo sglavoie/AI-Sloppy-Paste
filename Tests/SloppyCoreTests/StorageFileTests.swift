@@ -173,6 +173,21 @@ import Testing
         #expect(try Set(FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path)) == ["data.json", "data.json.lock"])
     }
 
+    @Test func duplicateIDsLeaveDataAndBackupUntouchedOnReplace() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let original = StorageData(snippets: [Snippet(id: "old", title: "Old", content: "old", createdAt: 1, updatedAt: 1)])
+        try file.save(original)
+        let bytes = try Data(contentsOf: file.url)
+        let duplicate = LegacySnippet(id: "dup", title: "Duplicate", content: "text", createdAt: 1, updatedAt: 1)
+        let payload = ImportPayload(snippets: [duplicate, duplicate])
+
+        #expect(throws: ImportValidationError.duplicateSnippetID("dup")) {
+            try file.importPayload(payload, into: original, mode: .replace)
+        }
+        #expect(try Data(contentsOf: file.url) == bytes)
+        #expect(!FileManager.default.fileExists(atPath: file.backupURL.path))
+    }
+
     @Test func corruptFileIsQuarantinedNotOverwritten() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)

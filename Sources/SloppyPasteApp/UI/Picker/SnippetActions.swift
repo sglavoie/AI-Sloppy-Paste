@@ -20,13 +20,15 @@ struct SnippetActions {
         return copy
     }
 
-    func delete(_ snippet: Snippet) {
+    @discardableResult
+    func delete(_ snippet: Snippet) -> Bool {
         let deleted: Void? = perform(failure: "Failed to delete snippet") { repository, _ in
             guard repository.deleteSnippet(id: snippet.id) else { throw StorageError.snippetNotFound }
         }
         if deleted != nil {
             toasts.success("Snippet deleted")
         }
+        return deleted != nil
     }
 
     func togglePin(_ snippet: Snippet) {

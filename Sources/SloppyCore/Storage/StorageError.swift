@@ -2,6 +2,7 @@ import Foundation
 
 public enum StorageError: Error, Equatable, LocalizedError {
     case unsupportedStorageVersion(Int)
+    case unsupportedExportVersion(String)
     case invalidStorageVersion
     case invalidCurrentStorageData(String)
     case dataChangedSinceRead
@@ -19,6 +20,8 @@ public enum StorageError: Error, Equatable, LocalizedError {
         switch self {
         case .unsupportedStorageVersion(let version):
             "Storage version \(version) is newer than supported version \(StorageConstants.currentVersion). Update Sloppy Paste to open this file. The file has been left unchanged."
+        case .unsupportedExportVersion(let version):
+            "Export version \(version) is newer than supported version \(StorageConstants.currentVersion).0.0. Update Sloppy Paste to import this file. The file has been left unchanged."
         case .invalidStorageVersion:
             "The file has an invalid storage version. It has been left unchanged."
         case .invalidCurrentStorageData(let field):

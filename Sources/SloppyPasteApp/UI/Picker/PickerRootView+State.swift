@@ -114,11 +114,15 @@ extension PickerRootView {
         guard let snippet = pendingDelete else { return }
         pendingDelete = nil
         let items = PickerItem.items(listState(now: store.now()))
+        let neighbourID: String?
         if let index = items.firstIndex(where: { $0.id == snippet.id }) {
             let neighbour = items.indices.contains(index + 1) ? index + 1 : index - 1
-            selectedID = items.indices.contains(neighbour) ? items[neighbour].id : nil
+            neighbourID = items.indices.contains(neighbour) ? items[neighbour].id : nil
+        } else {
+            neighbourID = nil
         }
-        actions.delete(snippet)
+        guard actions.delete(snippet) else { return }
+        selectedID = neighbourID
     }
 
     var manageTagsTitle: String {

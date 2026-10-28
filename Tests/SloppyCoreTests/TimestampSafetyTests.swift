@@ -5,7 +5,7 @@ import Testing
 @Suite struct TimestampSafetyTests {
     @Test func extremeImportedTimestampsCanBeSearchedAndDisplayed() throws {
         let json = #"{"snippets":[{"id":"s","title":"Old","content":"text","createdAt":-9223372036854775808,"lastUsedAt":-9223372036854775808,"useCount":1}]}"#
-        let data = ImportExport.replace(with: try ImportExport.decodeImport(Data(json.utf8)))
+        let data = try ImportExport.replace(with: ImportExport.decodeImport(Data(json.utf8)))
         let snippet = try #require(data.snippets.first)
         let analytics = Staleness.analyze(snippet, now: .max)
         #expect(analytics.daysUnused == 213_503_982_334)

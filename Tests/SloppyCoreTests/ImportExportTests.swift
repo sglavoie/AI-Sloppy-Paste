@@ -29,7 +29,7 @@ import Testing
     @Test func replaceBackfillsLegacySnippetFields() throws {
         let imported = try payload(#"[{"id": "legacy-1", "title": "Legacy", "content": "Content", "category": " Work ", "createdAt": 1000, "updatedAt": 1000}]"#)
 
-        let data = ImportExport.replace(with: imported)
+        let data = try ImportExport.replace(with: imported)
 
         #expect(data == StorageData(
             version: StorageConstants.currentVersion,
@@ -42,7 +42,7 @@ import Testing
         ))
     }
 
-    @Test func mergePreservesExplicitFlagsAndNormalizesDuplicateTags() {
+    @Test func mergePreservesExplicitFlagsAndNormalizesDuplicateTags() throws {
         let current = StorageData(snippets: [baseSnippet])
         var imported = baseSnippet
         imported.id = "snippet-2"
@@ -51,7 +51,7 @@ import Testing
         imported.isArchived = true
         imported.isPinned = true
 
-        let data = ImportExport.merge(ImportPayload(snippets: [LegacySnippet(imported)]), into: current)
+        let data = try ImportExport.merge(ImportPayload(snippets: [LegacySnippet(imported)]), into: current)
 
         #expect(data.snippets.count == 2)
         let merged = data.snippets[1]
@@ -77,8 +77,8 @@ import Testing
             history: #"{"name": [{"value": "Ada", "useCount": 9, "lastUsed": 9, "createdAt": 9}, {"value": "Grace", "useCount": 1, "lastUsed": 3, "createdAt": 3}], "city": [{"value": "Oslo", "useCount": 1, "lastUsed": 1, "createdAt": 1}]}"#
         )
 
-        let once = ImportExport.merge(imported, into: current)
-        let twice = ImportExport.merge(imported, into: once)
+        let once = try ImportExport.merge(imported, into: current)
+        let twice = try ImportExport.merge(imported, into: once)
 
         #expect(once.snippets.map(\.id) == ["snippet-1", "snippet-2", "snippet-3"])
         #expect(once.snippets[0] == baseSnippet)
@@ -88,36 +88,40 @@ import Testing
         #expect(twice == once)
     }
 
-    @Test func mergeSkipsIdsRepeatedWithinOneImport() throws {
-        let imported = try payload(#"[{"id": "dup", "title": "A", "content": "a", "createdAt": 1, "updatedAt": 1}, {"id": "dup", "title": "B", "content": "b", "createdAt": 1, "updatedAt": 1}]"#)
-        let data = ImportExport.merge(imported, into: .empty)
-        #expect(data.snippets.map(\.title) == ["A"])
+    @Test func decodingRejectsRepeatedIDs() {
+        #expect(throws: ImportValidationError.duplicateSnippetID("dup")) {
+            try payload(#"[{"id": "dup", "title": "A", "content": "a"}, {"id": "dup", "title": "B", "content": "b"}]"#)
+        }
     }
 
-    @Test func replaceSkipsRepeatedIdsAndKeepsTheFirstSnippet() throws {
-        let imported = try payload(#"[{"id": "dup", "title": "A", "content": "a"}, {"id": "dup", "title": "B", "content": "b"}, {"id": "other", "title": "C", "content": "c"}]"#)
-        let data = ImportExport.replace(with: imported)
-        #expect(data.snippets.map(\.id) == ["dup", "other"])
-        #expect(data.snippets.map(\.content) == ["a", "c"])
-        #expect(ImportSummary(imported, current: .empty, mode: .replace).importedCount == 2)
-        var repository = SnippetRepository(data: data)
-        repository.deleteSnippet(id: "dup")
-        #expect(repository.snippets.map(\.id) == ["other"])
+    @Test func programmaticImportsAlsoRejectRepeatedIDs() {
+        let first = LegacySnippet(id: "dup", title: "A", content: "a", createdAt: 1, updatedAt: 1)
+        let second = LegacySnippet(id: "dup", title: "B", content: "b", createdAt: 1, updatedAt: 1)
+        let imported = ImportPayload(snippets: [first, second])
+        #expect(throws: ImportValidationError.duplicateSnippetID("dup")) {
+            try ImportExport.merge(imported, into: .empty)
+        }
+        #expect(throws: ImportValidationError.duplicateSnippetID("dup")) {
+            try ImportExport.replace(with: imported)
+        }
+        #expect(throws: ImportValidationError.duplicateSnippetID("dup")) {
+            try ImportSummary(imported, current: .empty, mode: .replace)
+        }
     }
 
-    @Test func replaceDeduplicatesHistoryAndKeepsRecentValuesWithinTheLimit() {
+    @Test func replaceDeduplicatesHistoryAndKeepsRecentValuesWithinTheLimit() throws {
         let limit = StorageConstants.maxStoredValuesPerKey
         let values = (0...limit).map {
             PlaceholderHistoryValue(value: "value\($0)", useCount: 1, lastUsed: Int64($0), createdAt: 0)
         }
         let imported = ImportPayload(snippets: [], placeholderHistory: ["k": values + [values.last!]])
-        let data = ImportExport.replace(with: imported)
+        let data = try ImportExport.replace(with: imported)
         let stored = data.placeholderHistory["k"] ?? []
         #expect(stored.count == limit)
         #expect(Set(stored.map(\.value)).count == limit)
         #expect(stored.first == values.last)
         #expect(!stored.contains(values[0]))
-        #expect(ImportExport.replace(with: imported) == ImportExport.merge(imported, into: .empty))
+        #expect(try ImportExport.replace(with: imported) == ImportExport.merge(imported, into: .empty))
     }
 
     @Test func exportThenReplaceImportRoundTrips() throws {
@@ -138,15 +142,15 @@ import Testing
         #expect(export.exportedAt == 1_800_000_000_000)
 
         let json = try ImportExport.encodeExport(export)
-        let restored = ImportExport.replace(with: try ImportExport.decodeImport(json))
+        let restored = try ImportExport.replace(with: ImportExport.decodeImport(json))
 
         #expect(restored == original)
         #expect(try JSONDecoder().decode(ExportData.self, from: json) == export)
     }
 
-    @Test func replaceResetsStoredTagList() {
+    @Test func replaceResetsStoredTagList() throws {
         let payload = ImportPayload(ImportExport.makeExport(StorageData(tags: ["stale"]), now: 0))
-        #expect(ImportExport.replace(with: payload).tags.isEmpty)
+        #expect(try ImportExport.replace(with: payload).tags.isEmpty)
     }
 
     @Test func importRequiresSnippets() {
@@ -168,7 +172,7 @@ import Testing
 
     @Test func legacyImportStillFallsBackToCategoryWhenTagsHaveWrongShape() throws {
         let imported = try payload(#"[{"id":"a","title":"A","content":"x","tags":"bad shape","category":"Work"}]"#)
-        #expect(ImportExport.replace(with: imported).snippets[0].tags == ["work"])
+        #expect(try ImportExport.replace(with: imported).snippets[0].tags == ["work"])
     }
 
     @Test(arguments: ["99", #""99""#, #""99.0.0""#], ["[]", #"{"futureShape":true}"#])
@@ -179,7 +183,15 @@ import Testing
         }
     }
 
-    @Test(arguments: ["8.5", #""8x.0""#, #""unknown""#, "-1"])
+    @Test(arguments: ["7.0.1", "7.1.0", "7.999.0"])
+    func importRejectsNewerSameMajorVersions(version: String) {
+        let json = Data(#"{"version":"\#(version)","snippets":[]}"#.utf8)
+        #expect(throws: StorageError.unsupportedExportVersion(version)) {
+            try ImportExport.decodeImport(json)
+        }
+    }
+
+    @Test(arguments: ["8.5", #""8x.0""#, #""unknown""#, "-1", #""7.0.0.1""#])
     func importRejectsMalformedVersions(version: String) {
         let json = Data(#"{"version":\#(version),"snippets":[]}"#.utf8)
         #expect(throws: StorageError.invalidStorageVersion) { try ImportExport.decodeImport(json) }
@@ -190,7 +202,7 @@ import Testing
         let history = #"{"name":[{"value":"Ada","useCount":1,"lastUsed":2,"createdAt":1}]}"#
         let json = Data(#"{"version":\#(version),"snippets":[],"placeholderHistory":\#(history)}"#.utf8)
         let imported = try ImportExport.decodeImport(json)
-        #expect(ImportExport.replace(with: imported).placeholderHistory["name"]?.first?.value == "Ada")
+        #expect(try ImportExport.replace(with: imported).placeholderHistory["name"]?.first?.value == "Ada")
         #expect(try ImportExport.decodeImport(Data(#"{"snippets":[]}"#.utf8)).snippets.isEmpty)
     }
 
@@ -239,17 +251,17 @@ import Testing
         let imported = try payload(#"[{"id": "snippet-1", "title": "A", "content": "a", "createdAt": 1, "updatedAt": 1}, {"id": "snippet-2", "title": "B", "content": "b", "createdAt": 1, "updatedAt": 1}]"#)
         let current = StorageData(snippets: [baseSnippet])
 
-        let merge = ImportSummary(imported, current: current, mode: .merge)
+        let merge = try ImportSummary(imported, current: current, mode: .merge)
         #expect(merge.fileCount == 2)
         #expect(merge.importedCount == 1)
         #expect(merge.resultMessage == "Added 1 new snippet (1 already present)")
 
-        let replace = ImportSummary(imported, current: current, mode: .replace)
+        let replace = try ImportSummary(imported, current: current, mode: .replace)
         #expect(replace.importedCount == 2)
         #expect(replace.currentCount == 1)
         #expect(replace.resultMessage == "Imported 2 snippets")
 
-        let again = ImportSummary(imported, current: ImportExport.merge(imported, into: current), mode: .merge)
+        let again = try ImportSummary(imported, current: ImportExport.merge(imported, into: current), mode: .merge)
         #expect(again.resultMessage == "Added 0 new snippets (2 already present)")
     }
 }

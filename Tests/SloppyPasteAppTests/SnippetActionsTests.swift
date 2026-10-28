@@ -18,8 +18,9 @@ import SloppyCore
         try file.save(.empty)
         let externalBytes = try Data(contentsOf: file.url)
         let toasts = ToastCenter()
-        SnippetActions(store: store, toasts: toasts).delete(snippet)
+        let deleted = SnippetActions(store: store, toasts: toasts).delete(snippet)
 
+        #expect(!deleted)
         #expect(toasts.current?.style == .failure)
         #expect(toasts.current?.title == "Failed to delete snippet")
         #expect(store.snippets.isEmpty)

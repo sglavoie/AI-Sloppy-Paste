@@ -101,11 +101,11 @@ import Testing
 
     @Test func filteredEmptyStatesDoNotClaimTheLibraryIsEmpty() {
         let cases: [(SnippetFilterOptions, String)] = [
-            (SnippetFilterOptions(selectedTag: "missing"), "No snippets match these filters"),
+            (SnippetFilterOptions(selectedTag: .tag("missing")), "No snippets match these filters"),
             (SnippetFilterOptions(showArchivedSnippets: true), "No archived snippets"),
             (SnippetFilterOptions(showOnlyFavorites: true, showArchivedSnippets: true),
              "No snippets match these filters"),
-            (SnippetFilterOptions(selectedTag: "home", showOnlyFavorites: true),
+            (SnippetFilterOptions(selectedTag: .tag("home"), showOnlyFavorites: true),
              "No snippets match these filters"),
         ]
         for (options, title) in cases {

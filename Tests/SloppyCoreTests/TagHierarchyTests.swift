@@ -236,7 +236,6 @@ import Testing
     @Test(arguments: [
         ("personal", ["4", "7"]),
         ("work", ["1", "2", "3", "7"]),
-        (TagHierarchy.untaggedSentinel, ["5", "6"]),
         ("nonexistent", []),
         ("work/projects", ["2", "3"]),
     ])

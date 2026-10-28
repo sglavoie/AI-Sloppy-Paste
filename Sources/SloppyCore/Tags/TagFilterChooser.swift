@@ -17,11 +17,11 @@ public enum TagFilterChooser {
         }
 
         /// The `SnippetFilterOptions.selectedTag` value this entry applies.
-        public var selectedTag: String? {
+        public var selectedTag: TagFilter? {
             switch self {
             case .allTags: nil
-            case .untagged: TagHierarchy.untaggedSentinel
-            case .tag(let tag, _): tag
+            case .untagged: .untagged
+            case .tag(let tag, _): .tag(tag)
             }
         }
     }
@@ -32,12 +32,12 @@ public enum TagFilterChooser {
     /// are ignored so every tag stays reachable. The selected tag stays listed
     /// even when no snippet in the view carries it.
     public static func entries(
-        snippets: [Snippet], showArchived: Bool, selectedTag: String?, searchText: String
+        snippets: [Snippet], showArchived: Bool, selectedTag: TagFilter?, searchText: String
     ) -> [Entry] {
         let pool = snippets.filter { $0.isArchived == showArchived }
         var tags = TagHierarchy.expandTagsWithParents(pool.flatMap(\.tags))
-        if let selectedTag, selectedTag != TagHierarchy.untaggedSentinel, !tags.contains(selectedTag) {
-            tags = TagHierarchy.expandTagsWithParents(tags + [selectedTag])
+        if case .tag(let tag) = selectedTag, !tags.contains(tag) {
+            tags = TagHierarchy.expandTagsWithParents(tags + [tag])
         }
 
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -47,8 +47,8 @@ public enum TagFilterChooser {
         if matches("All Tags") {
             entries.append(.allTags)
         }
-        let untaggedCount = TagHierarchy.filterSnippets(pool, byTag: TagHierarchy.untaggedSentinel).count
-        if matches("Untagged"), untaggedCount > 0 || selectedTag == TagHierarchy.untaggedSentinel {
+        let untaggedCount = TagFilter.untagged.apply(to: pool).count
+        if matches("Untagged"), untaggedCount > 0 || selectedTag == .untagged {
             entries.append(.untagged(count: untaggedCount))
         }
         for tag in tags where matches(tag) {

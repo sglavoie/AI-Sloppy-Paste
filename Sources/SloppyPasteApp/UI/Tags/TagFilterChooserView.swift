@@ -8,18 +8,18 @@ import SwiftUI
 @MainActor
 @Observable
 final class TagFilterChooserModel {
-    let currentTag: String?
+    let currentTag: TagFilter?
     private(set) var searchText = ""
     private(set) var selectedID: String?
 
     @ObservationIgnored private let snippets: [Snippet]
     @ObservationIgnored private let showArchived: Bool
     /// Applies the chosen `selectedTag`; nil clears the tag filter.
-    @ObservationIgnored private let apply: @MainActor (String?) -> Void
+    @ObservationIgnored private let apply: @MainActor (TagFilter?) -> Void
 
     init(
-        snippets: [Snippet], showArchived: Bool, currentTag: String?,
-        apply: @escaping @MainActor (String?) -> Void
+        snippets: [Snippet], showArchived: Bool, currentTag: TagFilter?,
+        apply: @escaping @MainActor (TagFilter?) -> Void
     ) {
         self.snippets = snippets
         self.showArchived = showArchived

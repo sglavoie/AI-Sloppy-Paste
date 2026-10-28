@@ -177,10 +177,10 @@ struct PickerRootView: View {
             }
             .fixedSize()
             Picker("Tag", selection: $options.selectedTag) {
-                Text("All Tags").tag(String?.none)
-                Text("Untagged").tag(String?.some(TagHierarchy.untaggedSentinel))
+                Text("All Tags").tag(TagFilter?.none)
+                Text("Untagged").tag(TagFilter?.some(.untagged))
                 Divider()
-                ForEach(tagChoices(state), id: \.self) { Text($0).tag(String?.some($0)) }
+                ForEach(tagChoices(state), id: \.self) { Text($0).tag(TagFilter?.some(.tag($0))) }
             }
             .fixedSize()
         }
@@ -190,7 +190,7 @@ struct PickerRootView: View {
 
     func tagChoices(_ state: PickerListState) -> [String] {
         var tags = state.list.visibleTags
-        if let selected = options.selectedTag, selected != TagHierarchy.untaggedSentinel, !tags.contains(selected) {
+        if case .tag(let selected) = options.selectedTag, !tags.contains(selected) {
             tags.insert(selected, at: 0)
         }
         return tags
@@ -214,7 +214,7 @@ struct PickerRootView: View {
             chips.append(FilterChip(id: "attention", title: "⚠ Needs Attention") { options.showNeedsAttention = false })
         }
         if let tag = options.selectedTag {
-            let label = tag == TagHierarchy.untaggedSentinel ? "Untagged" : tag
+            let label = tag.label
             chips.append(FilterChip(id: "tag", title: "Tag: \(label)") { options.selectedTag = nil })
         }
         if sort != .updatedDesc {

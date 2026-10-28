@@ -59,12 +59,12 @@ import Testing
         #expect(C.entries(snippets: tagged, showArchived: false, selectedTag: nil, searchText: "")
             == [.allTags, .tag("work", count: 1)])
         #expect(
-            C.entries(snippets: tagged, showArchived: false, selectedTag: TagHierarchy.untaggedSentinel, searchText: "")
+            C.entries(snippets: tagged, showArchived: false, selectedTag: .untagged, searchText: "")
                 == [.allTags, .untagged(count: 0), .tag("work", count: 1)])
     }
 
     @Test func keepsSelectedTagMissingFromView() {
-        let entries = C.entries(snippets: Self.snippets, showArchived: true, selectedTag: "work/projects", searchText: "")
+        let entries = C.entries(snippets: Self.snippets, showArchived: true, selectedTag: .tag("work/projects"), searchText: "")
         #expect(entries == [
             .allTags, .untagged(count: 1), .tag("old", count: 1), .tag("work", count: 0), .tag("work/projects", count: 0),
         ])
@@ -72,7 +72,7 @@ import Testing
 
     @Test func entriesMapToFilterValues() {
         #expect(C.Entry.allTags.selectedTag == nil)
-        #expect(C.Entry.untagged(count: 0).selectedTag == TagHierarchy.untaggedSentinel)
-        #expect(C.Entry.tag("work", count: 3).selectedTag == "work")
+        #expect(C.Entry.untagged(count: 0).selectedTag == .untagged)
+        #expect(C.Entry.tag("work", count: 3).selectedTag == .tag("work"))
     }
 }

@@ -2,15 +2,15 @@ import Foundation
 
 /// The toggles and dropdowns that sit beside the search field.
 public struct SnippetFilterOptions: Sendable, Hashable {
-    /// nil shows every tag; `TagHierarchy.untaggedSentinel` shows untagged snippets.
-    public var selectedTag: String?
+    /// nil shows every tag; `.untagged` shows snippets without tags.
+    public var selectedTag: TagFilter?
     public var showOnlyFavorites: Bool
     /// Shows only archived snippets instead of only unarchived ones.
     public var showArchivedSnippets: Bool
     public var showNeedsAttention: Bool
 
     public init(
-        selectedTag: String? = nil, showOnlyFavorites: Bool = false, showArchivedSnippets: Bool = false,
+        selectedTag: TagFilter? = nil, showOnlyFavorites: Bool = false, showArchivedSnippets: Bool = false,
         showNeedsAttention: Bool = false
     ) {
         self.selectedTag = selectedTag
@@ -76,7 +76,7 @@ public enum SnippetListPipeline {
         let showArchived = options.showArchivedSnippets || query.isFilters.contains(.archived)
         var result = snippets.filter { $0.isArchived == showArchived }
         if let tag = options.selectedTag {
-            result = TagHierarchy.filterSnippets(result, byTag: tag)
+            result = tag.apply(to: result)
         }
         if options.showOnlyFavorites {
             result = result.filter(\.isFavorite)

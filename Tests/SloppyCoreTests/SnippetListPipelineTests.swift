@@ -28,12 +28,12 @@ import Testing
             Self.snippet("1", tags: ["work"]), Self.snippet("2", tags: ["personal"]),
             Self.snippet("3", tags: ["work/projects"]),
         ]
-        #expect(Self.ids(snippets, "", SnippetFilterOptions(selectedTag: "work")) == ["1", "3"])
+        #expect(Self.ids(snippets, "", SnippetFilterOptions(selectedTag: .tag("work"))) == ["1", "3"])
     }
 
-    @Test func untaggedSentinel() {
+    @Test func untaggedCategory() {
         let snippets = [Self.snippet("1", tags: ["work"]), Self.snippet("2")]
-        #expect(Self.ids(snippets, "", SnippetFilterOptions(selectedTag: TagHierarchy.untaggedSentinel)) == ["2"])
+        #expect(Self.ids(snippets, "", SnippetFilterOptions(selectedTag: .untagged)) == ["2"])
     }
 
     @Test func favoritesFilter() {
@@ -55,7 +55,7 @@ import Testing
             Self.snippet("3", title: "Random", tags: ["work"]),
         ]
         #expect(QueryParser.parse("api").hasOperators)
-        #expect(Self.ids(snippets, "api", SnippetFilterOptions(selectedTag: "work")) == ["1"])
+        #expect(Self.ids(snippets, "api", SnippetFilterOptions(selectedTag: .tag("work"))) == ["1"])
     }
 
     @Test func tagDropdownAndTagOperator() {
@@ -63,7 +63,7 @@ import Testing
             Self.snippet("1", tags: ["work", "client"]), Self.snippet("2", tags: ["work"]),
             Self.snippet("3", tags: ["personal", "client"]),
         ]
-        #expect(Self.ids(snippets, "tag:client", SnippetFilterOptions(selectedTag: "work")) == ["1"])
+        #expect(Self.ids(snippets, "tag:client", SnippetFilterOptions(selectedTag: .tag("work"))) == ["1"])
     }
 
     @Test func favoritesToggleAndQuery() {
@@ -95,7 +95,7 @@ import Testing
             Self.snippet("other", tags: ["personal"], isArchived: true),
         ]
         #expect(Self.ids(snippets, "is:archived") == ["archived", "other"])
-        #expect(Self.ids(snippets, "is:archived", SnippetFilterOptions(selectedTag: "work", showOnlyFavorites: true))
+        #expect(Self.ids(snippets, "is:archived", SnippetFilterOptions(selectedTag: .tag("work"), showOnlyFavorites: true))
             == ["archived"])
         #expect(Self.ids(snippets, "is:archived not:archived").isEmpty)
         #expect(Self.ids(snippets, "not:archived") == ["active"])
@@ -120,7 +120,7 @@ import Testing
             Self.snippet("stale-personal", tags: ["personal"], createdAt: longAgo, updatedAt: longAgo, lastUsedAt: longAgo, useCount: 1),
             Self.snippet("fresh-work", tags: ["work"], lastUsedAt: Self.now, useCount: 1),
         ]
-        let options = SnippetFilterOptions(selectedTag: "work", showNeedsAttention: true)
+        let options = SnippetFilterOptions(selectedTag: .tag("work"), showNeedsAttention: true)
         #expect(Self.ids(snippets, "", options) == ["stale-work"])
     }
 

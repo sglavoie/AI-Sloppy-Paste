@@ -1,5 +1,25 @@
 import Foundation
 
+/// A tag filter keeps the untagged category separate from every literal tag name.
+public enum TagFilter: Sendable, Hashable {
+    case untagged
+    case tag(String)
+
+    public var label: String {
+        switch self {
+        case .untagged: "Untagged"
+        case .tag(let name): name
+        }
+    }
+
+    public func apply(to snippets: [Snippet]) -> [Snippet] {
+        switch self {
+        case .untagged: snippets.filter { $0.normalizedTags.isEmpty }
+        case .tag(let name): TagHierarchy.filterSnippets(snippets, byTag: name)
+        }
+    }
+}
+
 /// A tag and its direct children, for hierarchical lists.
 public struct TagNode: Sendable, Hashable {
     public var tag: String
@@ -33,9 +53,6 @@ public struct FlatTagNode: Sendable, Hashable {
 /// Hierarchy helpers for `/`-separated tags such as `work/projects/client-a`.
 /// Normalisation itself lives in `TagNormalization`.
 public enum TagHierarchy {
-    /// Sentinel used to represent the "Untagged" pseudo-category.
-    public static let untaggedSentinel = "__untagged__"
-
     /// `"work/projects/client-a"` → `["work", "projects", "client-a"]`; empty segments are dropped.
     public static func parseTagPath(_ tag: String) -> [String] {
         tag.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
@@ -162,11 +179,8 @@ public enum TagHierarchy {
         return expanded.sorted(by: TagNormalization.localeLess)
     }
 
-    /// Snippets carrying `tag` or one of its descendants; `untaggedSentinel` selects untagged snippets.
+    /// Snippets carrying the literal `tag` or one of its descendants.
     public static func filterSnippets(_ snippets: [Snippet], byTag tag: String) -> [Snippet] {
-        if tag == untaggedSentinel {
-            return snippets.filter { $0.normalizedTags.isEmpty }
-        }
         return snippets.filter { $0.tags.contains { matches($0, filter: tag) } }
     }
 }

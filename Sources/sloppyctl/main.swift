@@ -98,7 +98,7 @@ struct Options {
                 if argument == "--text" { text = value } else if argument == "--file" { file = value } else { snippetID = value }
             case "--tag":
                 guard let tag = iterator.next() else { throw CommandError(description: "--tag needs a value") }
-                filterOptions.selectedTag = tag
+                filterOptions.selectedTag = .tag(tag)
             case "--favorites": filterOptions.showOnlyFavorites = true
             case "--archived": filterOptions.showArchivedSnippets = true
             case "--needs-attention": filterOptions.showNeedsAttention = true

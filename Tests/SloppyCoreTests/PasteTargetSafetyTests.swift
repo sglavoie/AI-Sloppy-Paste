@@ -87,6 +87,16 @@ import Testing
         #expect(system.keyEvents == [true, false])
     }
 
+    @Test func unavailablePasteEventsReportCopyOnly() async throws {
+        let system = FakeSystem(frontmost: 1)
+        system.canPostPaste = false
+        let outcome = try await system.sequence().run("Hello", into: 1)
+        #expect(outcome == .copiedOnly(.pasteEventUnavailable))
+        #expect(system.clipboard == "Hello")
+        #expect(system.keyEvents.isEmpty)
+        #expect(outcome.hud?.title == "Copied to Clipboard")
+    }
+
     @Test func secureInputAfterTheDelayOnlyCopies() async throws {
         let system = FakeSystem(frontmost: 1)
         system.duringWait = { system.secureInput = true }
@@ -136,6 +146,7 @@ private final class FakeSystem {
     var activationSucceeds = true
     var activationTakesFocus = true
     var secureInput = false
+    var canPostPaste = true
     var permission = PasteOutcome.pasted
     var duringWait: () -> Void = {}
 
@@ -176,7 +187,11 @@ private final class FakeSystem {
                 self.waits += 1
                 self.duringWait()
             },
-            postPasteKey: { self.keyEvents.append($0) }
+            postPaste: {
+                guard self.canPostPaste else { return false }
+                self.keyEvents += [true, false]
+                return true
+            }
         )
     }
 }

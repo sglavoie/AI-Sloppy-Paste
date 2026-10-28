@@ -56,7 +56,10 @@ Saving or explicitly discarding a draft removes it from recovery. Draft text,
 including incomplete tags and surrounding whitespace, is preserved as typed.
 If the recovery file cannot be read, it is left untouched and the picker shows
 a warning; new drafts stay in memory until the file is repaired and the app
-restarted. A failed draft write also shows a warning to keep the app open.
+restarted. A failed draft write also shows a warning to keep the app open. If
+another copy of Sloppy Paste changes `drafts.json`, this copy stops saving
+drafts and warns you to copy its unsaved edits before restarting. The other
+copy's recovery file is left untouched.
 
 If a snippet's title, content, description, or tags changed while its draft was
 open or in recovery, saving stops and preserves both versions. Copy your draft
@@ -338,7 +341,9 @@ the store's migration, backup, and quarantine behavior.
   by default) in the same section. The app also only copies when the app you
   opened the picker from quit or lost focus before ⌘V, so it never pastes into
   a different app. If another copy changes the clipboard during the delay,
-  the paste is cancelled; select the snippet again to retry.
+  the paste is cancelled; select the snippet again to retry. If macOS cannot
+  create the synthetic ⌘V key events, the snippet stays on the clipboard and
+  the HUD prompts you to paste manually.
 - **Accessibility is granted but ignored after a rebuild.** Compare
   `just show-dr` with an earlier build. Then run the `tccutil reset` command
   above and grant the permission again.

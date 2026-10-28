@@ -66,11 +66,11 @@ final class TagFilterChooserModel {
 
     var bindings: [KeyBinding] {
         [
-            KeyBinding(id: "tagFilterUp", title: "Previous", chord: KeyChord(.upArrow), showsInMenu: false) {
+            KeyBinding(id: "tagFilterUp", title: "Previous", chord: KeyChord(.upArrow), showsInMenu: false, allowsKeyRepeat: true) {
                 [weak self] in
                 self?.moveSelection(by: -1)
             },
-            KeyBinding(id: "tagFilterDown", title: "Next", chord: KeyChord(.downArrow), showsInMenu: false) {
+            KeyBinding(id: "tagFilterDown", title: "Next", chord: KeyChord(.downArrow), showsInMenu: false, allowsKeyRepeat: true) {
                 [weak self] in
                 self?.moveSelection(by: 1)
             },

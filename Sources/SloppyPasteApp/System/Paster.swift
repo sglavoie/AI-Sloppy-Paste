@@ -46,17 +46,22 @@ final class Paster {
             },
             activate: { $0.activate() },
             wait: { try? await Task.sleep(for: .milliseconds(delay)) },
-            postPasteKey: Self.postCommandV(keyDown:)
+            postPaste: Self.postCommandV
         )
         return try await sequence.run(text, into: target)
     }
 
-    private static func postCommandV(keyDown: Bool) {
-        let source = CGEventSource(stateID: .combinedSessionState)
+    private static func postCommandV() -> Bool {
+        guard let source = CGEventSource(stateID: .combinedSessionState) else { return false }
         let keyCode = keyCode(producing: "v") ?? CGKeyCode(kVK_ANSI_V)
-        let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: keyDown)
-        event?.flags = .maskCommand
-        event?.post(tap: .cghidEventTap)
+        guard let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
+            let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
+        else { return false }
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+        return true
     }
 
     /// The virtual key that types `character` in the current keyboard layout

@@ -30,22 +30,22 @@ extension PickerRootView {
             snippet.isArchived ? nil : Staleness.analyze(snippet, now: store.now()).stalenessReason
         }
         return [
-            KeyBinding(id: "up", title: "Previous", chord: KeyChord(.upArrow), showsInMenu: false) {
+            KeyBinding(id: "up", title: "Previous", chord: KeyChord(.upArrow), showsInMenu: false, allowsKeyRepeat: true) {
                 moveSelection(by: -1)
             },
-            KeyBinding(id: "down", title: "Next", chord: KeyChord(.downArrow), showsInMenu: false) {
+            KeyBinding(id: "down", title: "Next", chord: KeyChord(.downArrow), showsInMenu: false, allowsKeyRepeat: true) {
                 moveSelection(by: 1)
             },
             // j/k only while the search field is unfocused, so they still type.
             KeyBinding(
                 id: "vimUp", title: "Previous", chord: searchFocused ? nil : KeyChord(.character("k")),
-                showsInMenu: false
+                showsInMenu: false, allowsKeyRepeat: true
             ) {
                 moveUpOrFocusSearch()
             },
             KeyBinding(
                 id: "vimDown", title: "Next", chord: searchFocused ? nil : KeyChord(.character("j")),
-                showsInMenu: false
+                showsInMenu: false, allowsKeyRepeat: true
             ) {
                 moveSelection(by: 1)
             },

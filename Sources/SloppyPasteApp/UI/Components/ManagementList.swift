@@ -119,10 +119,10 @@ enum ListSelection {
     @MainActor
     static func arrowBindings(prefix: String, move: @escaping @MainActor (Int) -> Void) -> [KeyBinding] {
         [
-            KeyBinding(id: "\(prefix)Up", title: "Previous", chord: KeyChord(.upArrow), showsInMenu: false) {
+            KeyBinding(id: "\(prefix)Up", title: "Previous", chord: KeyChord(.upArrow), showsInMenu: false, allowsKeyRepeat: true) {
                 move(-1)
             },
-            KeyBinding(id: "\(prefix)Down", title: "Next", chord: KeyChord(.downArrow), showsInMenu: false) {
+            KeyBinding(id: "\(prefix)Down", title: "Next", chord: KeyChord(.downArrow), showsInMenu: false, allowsKeyRepeat: true) {
                 move(1)
             },
         ]

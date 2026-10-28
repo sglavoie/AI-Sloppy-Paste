@@ -11,6 +11,8 @@ public enum CopyOnlyReason: Sendable, Hashable {
     case targetUnavailable
     /// Another write replaced the clipboard during the paste delay.
     case clipboardChanged
+    /// The system could not create the key events needed for ⌘V.
+    case pasteEventUnavailable
 }
 
 /// What happened to a paste or copy action, and the HUD text that reports it.
@@ -42,6 +44,8 @@ public enum PasteOutcome: Sendable, Hashable {
             ("Copied to Clipboard", "The previous app is no longer in front, so Sloppy Paste did not paste. Press ⌘V to paste.")
         case .copiedOnly(.clipboardChanged):
             ("Paste Cancelled", "The clipboard changed before Sloppy Paste could paste. Select the snippet again to retry.")
+        case .copiedOnly(.pasteEventUnavailable):
+            ("Copied to Clipboard", "Sloppy Paste could not send ⌘V. Press ⌘V to paste manually.")
         }
     }
 }

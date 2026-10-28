@@ -74,6 +74,33 @@ import SloppyCore
         #expect(try Data(contentsOf: url) == invalid)
     }
 
+    @Test(arguments: [false, true])
+    func secondInstanceCannotOverwriteChangedDrafts(firstWritesBeforeSecond: Bool) throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appending(path: "drafts.json")
+        let first = Navigator(draftURL: url)
+        let second: Navigator
+        if firstWritesBeforeSecond {
+            let session = first.startEditor(.new, draft: SnippetDraft())
+            session.draft.title = "First version"
+            second = Navigator(draftURL: url)
+            session.draft.title = "Latest version"
+        } else {
+            second = Navigator(draftURL: url)
+            let session = first.startEditor(.new, draft: SnippetDraft())
+            session.draft.title = "Latest version"
+        }
+        let savedBytes = try Data(contentsOf: url)
+        let secondSession = second.startEditor(.edit(snippetID: "other"), draft: SnippetDraft())
+        secondSession.draft.content = "Unsaved in second instance"
+
+        #expect(second.draftRecoveryError?.contains("another copy") == true)
+        #expect(second.pendingEditor === secondSession)
+        #expect(try Data(contentsOf: url) == savedBytes)
+        #expect(Navigator(draftURL: url).editorSession(for: .new)?.draft.title == "Latest version")
+    }
+
     @Test func returningToOriginalDraftRemovesItFromRecovery() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

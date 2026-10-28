@@ -50,6 +50,7 @@ final class Navigator {
     private(set) var draftRecoveryError: String?
     private let draftURL: URL?
     private var canWriteDrafts = true
+    @ObservationIgnored private var lastSavedDraftBytes: Data?
 
     static var defaultDraftURL: URL {
         StorageFile.defaultURL.deletingLastPathComponent().appending(path: "drafts.json")
@@ -71,9 +72,11 @@ final class Navigator {
         self.draftURL = draftURL
         guard let draftURL else { return }
         do {
-            let data: Data
-            do { data = try Data(contentsOf: draftURL) }
-            catch CocoaError.fileReadNoSuchFile { return }
+            let data = try StorageFile(url: draftURL).withExclusiveLock {
+                try Self.readDraftBytes(at: draftURL)
+            }
+            lastSavedDraftBytes = data
+            guard let data else { return }
             let saved = try JSONDecoder().decode(SavedDrafts.self, from: data)
             guard saved.version == 1, Set(saved.drafts.map(\.mode)).count == saved.drafts.count else {
                 throw CocoaError(.coderReadCorrupt)
@@ -99,13 +102,28 @@ final class Navigator {
             let saved = SavedDrafts(drafts: editorSessions.filter(\.hasUnsavedChanges).map {
                 SavedDraft(mode: $0.mode, original: $0.original, draft: $0.draft)
             })
-            try FileManager.default.createDirectory(at: draftURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             let data = try JSONEncoder().encode(saved)
-            try data.write(to: draftURL, options: .atomic)
+            try StorageFile(url: draftURL).withExclusiveLock {
+                guard try Self.readDraftBytes(at: draftURL) == lastSavedDraftBytes else {
+                    throw DraftFileChanged()
+                }
+                try data.write(to: draftURL, options: .atomic)
+                lastSavedDraftBytes = data
+            }
             draftRecoveryError = nil
+        } catch is DraftFileChanged {
+            canWriteDrafts = false
+            draftRecoveryError = "Drafts changed in another copy of Sloppy Paste. The file at \(draftURL.path) is preserved. Keep this app open and copy your unsaved edits before restarting."
         } catch {
             draftRecoveryError = "Cannot save drafts for recovery: \(error.localizedDescription) Keep the app open until this is resolved."
         }
+    }
+
+    private struct DraftFileChanged: Error {}
+
+    private static func readDraftBytes(at url: URL) throws -> Data? {
+        do { return try Data(contentsOf: url) }
+        catch CocoaError.fileReadNoSuchFile { return nil }
     }
 
     var pendingEditor: SnippetEditorSession? {

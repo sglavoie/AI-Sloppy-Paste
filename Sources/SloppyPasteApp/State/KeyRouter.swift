@@ -87,6 +87,8 @@ struct KeyBinding: Identifiable {
     /// Hidden bindings route keys but are left out of the action menu.
     var showsInMenu: Bool = true
     var isEnabled: Bool = true
+    /// Navigation may repeat while a key is held; one-shot actions may not.
+    var allowsKeyRepeat: Bool = false
     var perform: @MainActor () -> Void
 }
 
@@ -189,15 +191,17 @@ final class KeyRouter {
             return handleActionMenu(event)
         }
         if Self.actionMenuChord.matches(event) {
-            openActionMenu()
+            if !event.isARepeat { openActionMenu() }
             return true
         }
         let bindings = bindings(for: navigator.current)
         if let binding = bindings.first(where: { $0.isEnabled && $0.chord?.matches(event) == true }) {
+            guard !event.isARepeat || binding.allowsKeyRepeat else { return true }
             binding.perform()
             return true
         }
         if KeyChord(.escape).matches(event) {
+            guard !event.isARepeat else { return true }
             if !navigator.pop() {
                 onEscapeAtRoot()
             }
@@ -231,6 +235,10 @@ final class KeyRouter {
     }
 
     private func handleActionMenu(_ event: NSEvent) -> Bool {
+        if event.isARepeat && (KeyChord(.escape).matches(event)
+            || Self.actionMenuChord.matches(event)
+            || KeyChord(.return).matches(event)
+            || KeyChord(.return, .command).matches(event)) { return true }
         if KeyChord(.escape).matches(event) || Self.actionMenuChord.matches(event) {
             closeActionMenu()
         } else if KeyChord(.upArrow).matches(event) {

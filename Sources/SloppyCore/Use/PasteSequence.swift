@@ -19,7 +19,8 @@ public struct PasteSequence<Target> {
     public var activate: @MainActor (Target) -> Bool
     /// Time for the target to take key focus back.
     public var wait: @MainActor () async -> Void
-    public var postPasteKey: @MainActor (_ keyDown: Bool) -> Void
+    /// Returns false if the key pair could not be created.
+    public var postPaste: @MainActor () -> Bool
 
     public init(
         copy: @escaping @MainActor (String) throws -> Void,
@@ -30,7 +31,7 @@ public struct PasteSequence<Target> {
         isFrontmost: @escaping @MainActor (Target) -> Bool,
         activate: @escaping @MainActor (Target) -> Bool,
         wait: @escaping @MainActor () async -> Void,
-        postPasteKey: @escaping @MainActor (Bool) -> Void
+        postPaste: @escaping @MainActor () -> Bool
     ) {
         self.copy = copy
         self.isClipboardCurrent = isClipboardCurrent
@@ -40,7 +41,7 @@ public struct PasteSequence<Target> {
         self.isFrontmost = isFrontmost
         self.activate = activate
         self.wait = wait
-        self.postPasteKey = postPasteKey
+        self.postPaste = postPaste
     }
 
     /// Copies `text`, then posts one ⌘V only if `target` is still live and
@@ -67,8 +68,6 @@ public struct PasteSequence<Target> {
         // the contents during the delay. Never paste that replacement text.
         guard isClipboardCurrent() else { return .copiedOnly(.clipboardChanged) }
 
-        postPasteKey(true)
-        postPasteKey(false)
-        return .pasted
+        return postPaste() ? .pasted : .copiedOnly(.pasteEventUnavailable)
     }
 }

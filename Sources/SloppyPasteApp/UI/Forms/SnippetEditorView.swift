@@ -412,10 +412,10 @@ struct SnippetEditorView: View {
             KeyBinding(id: "save", title: submitTitle, chord: KeyChord(.return, .command), isEnabled: !missingSnippet) {
                 save()
             },
-            KeyBinding(id: "nextField", title: "Next Field", chord: KeyChord(.tab), showsInMenu: false) {
+            KeyBinding(id: "nextField", title: "Next Field", chord: KeyChord(.tab), showsInMenu: false, allowsKeyRepeat: true) {
                 moveFocus(by: 1)
             },
-            KeyBinding(id: "previousField", title: "Previous Field", chord: KeyChord(.tab, .shift), showsInMenu: false) {
+            KeyBinding(id: "previousField", title: "Previous Field", chord: KeyChord(.tab, .shift), showsInMenu: false, allowsKeyRepeat: true) {
                 moveFocus(by: -1)
             },
             KeyBinding(id: "editTags", title: "Edit Tags", chord: KeyChord(.character("t"), .command), isEnabled: !missingSnippet) {

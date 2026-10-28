@@ -171,10 +171,10 @@ final class TagPickerModel {
 
     var bindings: [KeyBinding] {
         [
-            KeyBinding(id: "tagUp", title: "Previous", chord: KeyChord(.upArrow), showsInMenu: false) { [weak self] in
+            KeyBinding(id: "tagUp", title: "Previous", chord: KeyChord(.upArrow), showsInMenu: false, allowsKeyRepeat: true) { [weak self] in
                 self?.moveSelection(by: -1)
             },
-            KeyBinding(id: "tagDown", title: "Next", chord: KeyChord(.downArrow), showsInMenu: false) { [weak self] in
+            KeyBinding(id: "tagDown", title: "Next", chord: KeyChord(.downArrow), showsInMenu: false, allowsKeyRepeat: true) { [weak self] in
                 self?.moveSelection(by: 1)
             },
             KeyBinding(

@@ -336,10 +336,10 @@ struct PlaceholderFormView: View {
             KeyBinding(id: "defaults", title: "Use Defaults for All Optional", chord: KeyChord(.character("d"), .command)) {
                 model?.useDefaults()
             },
-            KeyBinding(id: "nextField", title: "Next Field", chord: KeyChord(.tab), showsInMenu: false) {
+            KeyBinding(id: "nextField", title: "Next Field", chord: KeyChord(.tab), showsInMenu: false, allowsKeyRepeat: true) {
                 moveFocus(by: 1)
             },
-            KeyBinding(id: "previousField", title: "Previous Field", chord: KeyChord(.tab, .shift), showsInMenu: false) {
+            KeyBinding(id: "previousField", title: "Previous Field", chord: KeyChord(.tab, .shift), showsInMenu: false, allowsKeyRepeat: true) {
                 moveFocus(by: -1)
             },
             KeyBinding(
@@ -349,13 +349,13 @@ struct PlaceholderFormView: View {
             },
             KeyBinding(
                 id: "previousOption", title: "Previous Option", chord: KeyChord(.upArrow), showsInMenu: false,
-                isEnabled: onDropdown
+                isEnabled: onDropdown, allowsKeyRepeat: true
             ) {
                 stepFocusedOption(by: -1)
             },
             KeyBinding(
                 id: "nextOption", title: "Next Option", chord: KeyChord(.downArrow), showsInMenu: false,
-                isEnabled: onDropdown
+                isEnabled: onDropdown, allowsKeyRepeat: true
             ) {
                 stepFocusedOption(by: 1)
             },

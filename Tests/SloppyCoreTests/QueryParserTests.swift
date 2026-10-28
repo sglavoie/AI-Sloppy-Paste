@@ -3,6 +3,15 @@ import Testing
 
 /// Ported from queryParser.test.ts.
 @Suite struct QueryParserTests {
+    @Test(arguments: ["\u{301}", "\u{301}work", "\u{FE0F}work"])
+    func operatorValuesPreserveLeadingCombiningScalars(value: String) {
+        #expect(QueryParser.parse("tag:" + value).tags == [value])
+        #expect(QueryParser.parse("not:tag:" + value).notTags == [value])
+        #expect(QueryParser.parse("ctx:" + value).contexts == [value])
+        #expect(QueryParser.parse("not:ctx:" + value).notContexts == [value])
+        #expect(QueryParser.parse("tag:\"" + value + "\"").tags == [value])
+    }
+
     @Test(arguments: ["", "   "])
     func emptyQueries(_ query: String) {
         let result = QueryParser.parse(query)

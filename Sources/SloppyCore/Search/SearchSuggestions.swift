@@ -43,8 +43,8 @@ public enum SearchSuggestions {
         guard unescapedPrefix.filter({ $0 == "\"" }).count.isMultiple(of: 2), !token.contains("\"") else { return [] }
         // Check the compound operators before the generic `not:` branch.
         guard let operation = ["not:ctx:", "not:tag:", "ctx:", "tag:", "is:", "not:"]
-            .first(where: { token.hasPrefix($0) }) else { return [] }
-        let value = String(token.dropFirst(operation.count)).lowercased()
+            .first(where: { token.unicodeScalars.starts(with: $0.unicodeScalars) }) else { return [] }
+        let value = String(token.unicodeScalars.dropFirst(operation.unicodeScalars.count)).lowercased()
         // A space ends a value; retain completions for an empty operator (`ctx: `).
         guard value.isEmpty || query.last?.isWhitespace != true else { return [] }
 
@@ -69,8 +69,8 @@ public enum SearchSuggestions {
         return candidates.filter { $0.value.lowercased().hasPrefix(value) }.prefix(limit).map {
             let title = operation + $0.value
             let completedValue: String
-            if operation == "not:", $0.value.hasPrefix("tag:") {
-                completedValue = "tag:" + queryValue(String($0.value.dropFirst(4)))
+            if operation == "not:", $0.value.unicodeScalars.starts(with: "tag:".unicodeScalars) {
+                completedValue = "tag:" + queryValue(String($0.value.unicodeScalars.dropFirst(4)))
             } else {
                 completedValue = queryValue($0.value)
             }

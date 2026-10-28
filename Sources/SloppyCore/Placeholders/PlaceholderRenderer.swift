@@ -3,8 +3,9 @@ import Foundation
 public enum PlaceholderRenderer {
     /// The full snippet pipeline: system placeholders, then conditional blocks,
     /// then value placeholders (with placeholders extracted after the system
-    /// pass, so `{{DATE}}` never becomes a user field). Authored defaults apply
-    /// to both conditions and substitutions; explicit blank values override them.
+    /// pass, so `{{DATE}}` never becomes a user field). Omitted values use the
+    /// form's initial defaults, including guards, choices and wrapper toggles.
+    /// Explicit blank values override those defaults.
     public static func render(
         _ content: String,
         values: [String: String],
@@ -15,7 +16,14 @@ public enum PlaceholderRenderer {
         let placeholders = PlaceholderSyntaxParser.extractPlaceholders(processed)
         var resolvedValues = values
         for placeholder in placeholders where resolvedValues[placeholder.key] == nil {
-            resolvedValues[placeholder.key] = placeholder.defaultValue
+            if placeholder.isGuardOnly {
+                resolvedValues[placeholder.key] = placeholder.defaultOn ? "true" : ""
+            } else if PlaceholderFormChoices.hasAuthoredChoices(placeholder) {
+                let state = PlaceholderFormChoices.initialState(placeholder)
+                resolvedValues[placeholder.key] = state.enabledOptional == false ? "" : state.formValue
+            } else {
+                resolvedValues[placeholder.key] = placeholder.defaultValue
+            }
         }
         let afterBlocks = ConditionalBlocks.process(processed, values: resolvedValues)
         return replacePlaceholders(afterBlocks, values: resolvedValues, placeholders: placeholders)

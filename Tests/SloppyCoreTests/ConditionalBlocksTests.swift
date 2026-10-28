@@ -284,6 +284,27 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 /// under Node 24, covering wrappers with empty values, emoji, CJK and CRLF.
 /// CRLF cleanup intentionally fixes the legacy renderer's split line endings.
 @Suite struct RenderPipelineGoldenTests {
+    @Test(arguments: [
+        "{{#if +show}}Visible{{#else}}Hidden{{/if}}",
+        "{{tone[Formal|Casual]}}",
+        "{{#if tone}}{{tone[Formal|Casual]}}{{#else}}Missing{{/if}}",
+        "{{(:tone[Formal|Casual]:)}}",
+        "{{(:tone[Formal|Casual]:)|Casual}}",
+    ])
+    func omittedValuesMatchInitialFormState(content: String) {
+        let form = PlaceholderFormModel(
+            snippetContent: content,
+            placeholders: extract(content), history: [:], now: 0)
+        #expect(PlaceholderRenderer.render(content, values: [:], now: 0) == form.previewContent)
+    }
+
+    @Test func explicitValuesOverrideGuardAndChoiceDefaults() {
+        let content = "{{#if +show}}{{tone[Formal|Casual]}}{{#else}}Hidden{{/if}}"
+        #expect(PlaceholderRenderer.render(content, values: ["show": ""], now: 0) == "Hidden")
+        #expect(PlaceholderRenderer.render(content, values: ["tone": ""], now: 0) == "")
+        #expect(PlaceholderRenderer.render(content, values: ["tone": "Custom"], now: 0) == "Custom")
+    }
+
     @Test(arguments: ["{{name|Ada}}", "{{name[Ada|Bob]|Ada}}", "{{(:name:)|Ada}}"])
     func defaultsAlsoDetermineConditionalBranches(declaration: String) {
         let text = "{{#if name}}Hello \(declaration){{#else}}Anonymous{{/if}}"

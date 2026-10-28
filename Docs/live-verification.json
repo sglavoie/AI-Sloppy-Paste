@@ -8,6 +8,15 @@
     "executable_sha256": "af14c7c82e290b56d70f2a1cee568fbeb247ef035dcd62e7ee1fcc637bea9ad3"
   },
   "tested_at": "2026-10-28T16:14:22+00:00",
+  "followup_build": {
+    "commit": "working tree based on 42411ce5ec1beedb96dd0c0d50367d92da7ca118",
+    "version": "0.1.0",
+    "build_number": "71",
+    "configuration": "release",
+    "installation": "~/Applications/SloppyPaste.app on sebs-macbook-pro; original app restored after testing",
+    "executable_sha256": "7b6f3ee566bc9b6bb3f95585b3bbf864f991b8afc42c5750cf34854eca3fc014"
+  },
+  "followup_tested_at": "2026-10-28T22:44:00+00:00",
   "tester": "Codex via SSH to sebs-macbook-pro, macOS GUI scripting and screen capture",
   "overall": "incomplete",
   "environment": {
@@ -80,8 +89,8 @@
       "procedure": "Select Dvorak, paste into a disposable target, and restore the original input source."
     },
     "rebuild-reinstall-keeps-accessibility": {
-      "status": "pending",
-      "observed": "The prior build passed this check; see live-verification-initial.json. This signed test build ran from /tmp and was not reinstalled over the existing app.",
+      "status": "pass",
+      "observed": "Reinstalled the follow-up build over the MacBook Pro app using the same local signing identity. Its designated requirement retained certificate leaf 4578be4da3408cea02a1c73f6ffa6673c3e8c2f8, and the status menu reported Accessibility: Granted. The original app was restored after testing.",
       "procedure": "Rebuild and reinstall with the same signing identity; verify the app still reports Accessibility granted."
     },
     "target-stays-frontmost": {
@@ -95,8 +104,8 @@
       "procedure": "Click outside the picker and verify it closes while the target remains usable."
     },
     "escape-every-depth": {
-      "status": "pending",
-      "observed": "Escape was observed from the root picker and editor, but the full list of depths has not been exercised.",
+      "status": "pass",
+      "observed": "On a signed follow-up build with disposable snippets, captured search, action menu, editor, placeholder form, tag picker, history, and delete confirmation. Escape dismissed each depth, and a further Escape closed the picker; Escape at the root closed it directly. No disposable snippet was deleted.",
       "procedure": "Exercise Escape from search, list, action menu, placeholder form, editor, tag picker, history, and confirmation overlays."
     },
     "form-menus-stay-open": {
@@ -111,7 +120,7 @@
     },
     "placeholder-tab-order": {
       "status": "pending",
-      "observed": "Tab moved focus from the required name field to the tone dropdown; the remaining control types have not been exercised.",
+      "observed": "On the follow-up build, screenshots showed focus move from the name text field to the tone choice, optional who wrapper, and sig guard with successive Tabs; Shift-Tab returned to the wrapper. A custom-value control has not been exercised.",
       "procedure": "Tab and Shift-Tab through text, choice, custom-value, wrapper and guard controls; verify focus follows visible controls."
     },
     "display-disconnect-repositions": {
@@ -120,8 +129,8 @@
       "procedure": "Disconnect the display hosting the picker and verify the panel moves onto a remaining display."
     },
     "import-export-focus-return": {
-      "status": "pending",
-      "observed": "Not verified on this build.",
+      "status": "pass",
+      "observed": "On the follow-up build, opened export and import from the nonactivating picker over Device Hub. Escape dismissed each system panel, and Device Hub was frontmost afterward. Settings also accepted Command-W while open and returned focus to Device Hub.",
       "procedure": "Open and cancel import and export panels from a disposable target; verify focus returns to the target."
     },
     "zoom-resizes-panel": {
@@ -131,7 +140,7 @@
     },
     "zoomed-clicks-hit-controls": {
       "status": "pending",
-      "observed": "The form dropdown and Actions item responded at 150% zoom; all field and control hit targets have not been checked.",
+      "observed": "At 150% zoom, the form dropdown, Actions item, and optional wrapper checkbox responded at their visible positions. The wrapper's text field was clicked but scripted typing did not establish focus, so text-field hit testing remains unverified.",
       "procedure": "At nondefault zoom, click visible fields, dropdowns and action controls; verify hit targets align."
     },
     "resume-draft-after-dismissal": {
@@ -156,8 +165,8 @@
     }
   },
   "notes": [
-    "The signed test bundle ran only from a private temporary directory on the MacBook Pro; the installed app was not replaced.",
-    "The remote data file was restored byte-for-byte after testing (SHA-256 f75e8b4da97531827308887d03ef2d3d70552d11ee168847ab9fd0b88d4f3261; 8 original snippets). Exported preferences compared exactly before and after restoration.",
+    "The original tested_build records the first verification run. Cases updated in the follow-up run used the signed installed followup_build; earlier passing cases were not repeated on that build.",
+    "After the follow-up run, the original installed app (build 396) and data were restored on the MacBook Pro. The data.json SHA-256 is f75e8b4da97531827308887d03ef2d3d70552d11ee168847ab9fd0b88d4f3261; drafts.json matched the backup, preferences matched the original parsed plist, and Sloppy Paste was left stopped as it was initially.",
     "Pending and blocked checks are not passes. The earlier installed-build result is retained in live-verification-initial.json."
   ]
 }

@@ -143,8 +143,8 @@ struct ManagePlaceholderHistoryView: View {
     private func confirmClear() {
         guard let stat = pendingClear else { return }
         pendingClear = nil
-        selectedID = ListSelection.neighbour(of: stat.key, in: stats().map(\.key))
         store.reloadIfChanged()
+        let neighbourID = ListSelection.neighbour(of: stat.key, in: stats().map(\.key))
         do {
             let cleared = try store.mutate { repository, _ in
                 guard let values = repository.data.placeholderHistory[stat.key] else {
@@ -153,6 +153,7 @@ struct ManagePlaceholderHistoryView: View {
                 repository.data.clearPlaceholderHistory(forKey: stat.key)
                 return values.count
             }
+            selectedID = neighbourID
             toasts.success("History cleared", message: "Cleared \(valuesLabel(cleared)) for \"\(stat.key)\"")
         } catch {
             toasts.failure("Failed to clear history", message: error.localizedDescription)
@@ -397,14 +398,15 @@ struct PlaceholderHistoryDetailView: View {
     private func confirmDelete() {
         guard let value = pendingDelete else { return }
         pendingDelete = nil
-        selectedID = ListSelection.neighbour(of: value, in: values().map(\.value))
         store.reloadIfChanged()
+        let neighbourID = ListSelection.neighbour(of: value, in: values().map(\.value))
         do {
             try store.mutate { repository, _ in
                 guard repository.data.deletePlaceholderValue(key: key, value: value) else {
                     throw StorageError.placeholderValueNotFound
                 }
             }
+            selectedID = neighbourID
             toasts.success("Value deleted")
             // The key is gone once its last value is.
             if store.data.placeholderHistory(forKey: key).isEmpty {

@@ -263,6 +263,9 @@ It uses the same `StorageData` JSON shape as the Raycast extension's export.
 - Imports reject files containing multiple snippets with the same ID, so no
   snippet is silently dropped. Replace leaves the current file and backup
   untouched when this validation fails.
+- A stored file with duplicate snippet IDs is left untouched and blocks edits
+  and imports until the IDs are repaired; deleting one ID must not remove
+  multiple snippets.
 - On startup, an incomplete or undecodable file is never overwritten. It is
   moved aside as `data.corrupt-<timestamp>.json`, the app starts empty, and an
   alert explains how to restore it. A current-version file with a field of the

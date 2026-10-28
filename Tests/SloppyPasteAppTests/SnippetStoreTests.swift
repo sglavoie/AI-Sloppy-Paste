@@ -146,6 +146,37 @@ import SloppyCore
         #expect(!FileManager.default.fileExists(atPath: file.backupURL.path))
     }
 
+    @Test func duplicateIDsFromExternalEditKeepLastGoodDataAndBlockMutations() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let snippet = Snippet(id: "same-id", title: "First", content: "one", createdAt: 1, updatedAt: 1)
+        let original = StorageData(snippets: [snippet])
+        try file.save(original)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+
+        var duplicate = snippet
+        duplicate.title = "Second"
+        let bytes = try StorageCoding.encode(StorageData(snippets: [snippet, duplicate]))
+        try bytes.write(to: file.url, options: .atomic)
+        store.reloadIfChanged()
+
+        #expect(store.data == original)
+        #expect(store.lastError?.contains("same-id") == true)
+        #expect(store.quarantinedURL == nil)
+        #expect(throws: (any Error).self) { try store.recordUse(id: "same-id") }
+        #expect(throws: (any Error).self) {
+            try store.importPayload(ImportPayload(snippets: []), mode: .replace)
+        }
+        #expect(try Data(contentsOf: file.url) == bytes)
+        #expect(!FileManager.default.fileExists(atPath: file.backupURL.path))
+
+        try file.save(original)
+        try store.recordUse(id: "same-id")
+        #expect(store.lastError == nil)
+        #expect(store.snippets[0].useCount == 1)
+    }
+
     @Test(arguments: [false, true])
     func writesPreserveExternalEditsWithUnchangedModificationDate(importing: Bool) throws {
         defer { try? FileManager.default.removeItem(at: directory) }

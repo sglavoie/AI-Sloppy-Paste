@@ -28,7 +28,7 @@ final class ImportExportController {
             panel.canCreateDirectories = true
             panel.directoryURL = URL.downloadsDirectory
             panel.nameFieldStringValue = ImportExport.exportFileName(now: store.now())
-            guard panel.runModal() == .OK, let url = panel.url else { return }
+            guard runPanel(panel) == .OK, let url = panel.url else { return }
 
             do {
                 try store.requireCurrentData()
@@ -53,7 +53,7 @@ final class ImportExportController {
             panel.allowsMultipleSelection = false
             panel.canChooseDirectories = false
             panel.directoryURL = URL.downloadsDirectory
-            guard panel.runModal() == .OK, let url = panel.url else { return }
+            guard runPanel(panel) == .OK, let url = panel.url else { return }
 
             let payload: ImportPayload
             do {
@@ -125,6 +125,15 @@ final class ImportExportController {
         hud.show("Import failed", message: message, symbol: "xmark.octagon")
     }
 
+    private func runPanel(_ panel: NSSavePanel) -> NSApplication.ModalResponse {
+        // The picker does not activate the app. Request activation after the
+        // modal panel is visible; runModal blocks the main dispatch queue.
+        let activation = modalActivationWorkItem()
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1, execute: activation)
+        defer { activation.cancel() }
+        return panel.runModal()
+    }
+
     private static func describe(_ error: DecodingError) -> String {
         switch error {
         case .keyNotFound(let key, _): "missing \"\(key.stringValue)\""
@@ -141,7 +150,6 @@ final class ImportExportController {
         let frontmost = NSWorkspace.shared.frontmostApplication
         let returnApp = frontmost?.processIdentifier == ProcessInfo.processInfo.processIdentifier ? nil : frontmost
         picker.hide()
-        NSApp.activate()
         body()
         let hasOwnWindow = NSApp.windows.contains { $0.isVisible && $0.canBecomeMain && !($0 is NSPanel) }
         if !hasOwnWindow, let returnApp, !returnApp.isTerminated {

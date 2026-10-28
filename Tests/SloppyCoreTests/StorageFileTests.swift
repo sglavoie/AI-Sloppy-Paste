@@ -188,6 +188,31 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: file.backupURL.path))
     }
 
+    @Test func duplicateIDsInStoredFileBlockReadsAndWritesWithoutMovingBytes() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let duplicate = Snippet(id: "same-id", title: "First", content: "one", createdAt: 1, updatedAt: 1)
+        var second = duplicate
+        second.title = "Second"
+        let data = StorageData(snippets: [duplicate, second])
+        try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+        for version in [1, StorageConstants.currentVersion] {
+            var document = data
+            document.version = version
+            let original = try StorageCoding.encode(document)
+            try original.write(to: file.url, options: .atomic)
+
+            #expect(throws: StorageError.duplicateStoredSnippetID("same-id")) { try file.read() }
+            #expect(throws: StorageError.duplicateStoredSnippetID("same-id")) { try file.load(now: 10) }
+            #expect(try Data(contentsOf: file.url) == original)
+            #expect(!FileManager.default.fileExists(atPath: file.backupURL.path))
+        }
+
+        let beforeSave = try Data(contentsOf: file.url)
+        #expect(throws: StorageError.duplicateStoredSnippetID("same-id")) { try file.save(data) }
+        #expect(try Data(contentsOf: file.url) == beforeSave)
+    }
+
     @Test func corruptFileIsQuarantinedNotOverwritten() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)

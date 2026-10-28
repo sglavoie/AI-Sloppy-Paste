@@ -25,11 +25,19 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         picker.hide()
         let window = self.window ?? makeWindow()
         self.window = window
-        NSApp.activate()
         if !window.isVisible {
             window.center()
         }
         window.makeKeyAndOrderFront(nil)
+        let activationSource = returnApp
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            guard window.isVisible else { return }
+            if let activationSource, !activationSource.isTerminated {
+                NSRunningApplication.current.activate(from: activationSource)
+            } else {
+                NSRunningApplication.current.activate()
+            }
+        }
     }
 
     func windowWillClose(_ notification: Notification) {

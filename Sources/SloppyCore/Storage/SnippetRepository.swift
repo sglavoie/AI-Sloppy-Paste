@@ -81,9 +81,9 @@ public struct SnippetRepository: Sendable, Hashable {
     /// must not turn into a successful no-op after an external edit.
     @discardableResult
     public mutating func deleteSnippet(id: String) -> Bool {
-        let count = data.snippets.count
-        data.snippets.removeAll { $0.id == id }
-        return data.snippets.count != count
+        guard let index = data.snippets.firstIndex(where: { $0.id == id }) else { return false }
+        data.snippets.remove(at: index)
+        return true
     }
 
     @discardableResult

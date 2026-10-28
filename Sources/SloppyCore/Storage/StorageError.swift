@@ -5,6 +5,7 @@ public enum StorageError: Error, Equatable, LocalizedError {
     case unsupportedExportVersion(String)
     case invalidStorageVersion
     case invalidCurrentStorageData(String)
+    case duplicateStoredSnippetID(String)
     case dataChangedSinceRead
     case dataFileDisappeared
     case snippetNotFound
@@ -26,6 +27,8 @@ public enum StorageError: Error, Equatable, LocalizedError {
             "The file has an invalid storage version. It has been left unchanged."
         case .invalidCurrentStorageData(let field):
             "The current-version data file has an invalid or missing field at \(field). It has been left unchanged. Repair the file and try again."
+        case .duplicateStoredSnippetID(let id):
+            "The data file contains multiple snippets with ID \"\(id)\". It has been left unchanged. Repair the duplicate ID and try again."
         case .dataChangedSinceRead:
             "The data file changed while the operation was running. No changes were saved; try again."
         case .dataFileDisappeared:

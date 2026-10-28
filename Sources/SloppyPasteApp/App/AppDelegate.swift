@@ -80,7 +80,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         defer { isShowingQuarantineAlert = false }
         picker.hide()
         let previousApp = NSWorkspace.shared.frontmostApplication
-        NSApp.activate()
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "The snippet data file could not be read"
@@ -88,7 +87,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             + "Fix the file and move it back to \(store.file.url.path) to restore your snippets."
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Show in Finder")
+        let activation = modalActivationWorkItem()
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1, execute: activation)
         let response = alert.runModal()
+        activation.cancel()
         store.clearQuarantineNotice()
         if response == .alertSecondButtonReturn {
             NSWorkspace.shared.activateFileViewerSelecting([url])

@@ -38,6 +38,15 @@ public struct StorageData: Codable, Sendable, Hashable {
     public static var empty: StorageData { StorageData() }
 }
 
+extension StorageData {
+    func validateUniqueSnippetIDs() throws {
+        var ids = Set<String>()
+        for snippet in snippets where !ids.insert(snippet.id).inserted {
+            throw StorageError.duplicateStoredSnippetID(snippet.id)
+        }
+    }
+}
+
 /// The export document written by Raycast (⇧⌘E) and by this app.
 public struct ExportData: Codable, Sendable, Hashable {
     public var version: String

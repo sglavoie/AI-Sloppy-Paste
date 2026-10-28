@@ -116,6 +116,7 @@ public struct StorageFile: Sendable, Hashable {
 
     /// Writes the data atomically, creating the directory if needed.
     public func save(_ data: StorageData) throws {
+        try data.validateUniqueSnippetIDs()
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try StorageCoding.encode(data).write(to: url, options: .atomic)

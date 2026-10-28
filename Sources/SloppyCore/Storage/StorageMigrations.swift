@@ -108,15 +108,14 @@ public enum StorageMigrations {
         let snippets = data.snippets.map { snippet in
             normalizedShape ? snippet.normalized() : snippet.filled(tags: snippet.sourceTags)
         }
-        return Result(
-            data: StorageData(
-                version: StorageConstants.currentVersion,
-                snippets: snippets,
-                tags: data.tags,
-                placeholderHistory: data.placeholderHistory ?? [:]
-            ),
-            didMigrate: didMigrate
+        let current = StorageData(
+            version: StorageConstants.currentVersion,
+            snippets: snippets,
+            tags: data.tags,
+            placeholderHistory: data.placeholderHistory ?? [:]
         )
+        try current.validateUniqueSnippetIDs()
+        return Result(data: current, didMigrate: didMigrate)
     }
 
     private typealias Migration = @Sendable (inout LegacyStorageData, inout Bool) -> Void

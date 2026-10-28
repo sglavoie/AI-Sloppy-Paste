@@ -155,6 +155,17 @@ import Testing
         #expect(!deleted)
         #expect(repo == before)
     }
+
+    @Test func deleteOnlyRemovesOneSnippetWhenGivenDuplicateIDsInMemory() {
+        let first = Snippet(id: "duplicate", title: "First", content: "one", createdAt: 1, updatedAt: 1)
+        var second = first
+        second.title = "Second"
+        var repo = SnippetRepository(data: StorageData(snippets: [first, second]))
+
+        let deleted = repo.deleteSnippet(id: "duplicate")
+        #expect(deleted)
+        #expect(repo.snippets == [second])
+    }
 }
 
 @Suite struct SnippetRepositoryTagTests {

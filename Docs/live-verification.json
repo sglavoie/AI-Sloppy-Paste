@@ -1,161 +1,163 @@
 {
   "tested_build": {
-    "commit": "93b3b3b6bcd9fad08a45b3bf9dbdf2c8a189774a",
+    "commit": "42411ce5ec1beedb96dd0c0d50367d92da7ca118",
     "version": "0.1.0",
-    "build_number": "54",
+    "build_number": "61",
     "configuration": "release",
-    "installation": "~/Applications/SloppyPaste.app",
-    "executable_sha256": "38b45b74420d23ce4614400d488bf1902f17398ec58d295a74510536bef62fc1"
+    "installation": "/tmp/sloppy-verify.OgAfHj/SloppyPaste.app on sebs-macbook-pro",
+    "executable_sha256": "af14c7c82e290b56d70f2a1cee568fbeb247ef035dcd62e7ee1fcc637bea9ad3"
   },
-  "tested_at": "2026-10-28T14:29:23+00:00",
-  "tester": "Codex via macOS Accessibility API and local shell",
+  "tested_at": "2026-10-28T16:14:22+00:00",
+  "tester": "Codex via SSH to sebs-macbook-pro, macOS GUI scripting and screen capture",
   "overall": "incomplete",
   "environment": {
+    "host": "sebs-macbook-pro",
     "macos": "27.0.1 (26A434)",
     "display_count": 1,
     "automation_accessibility": true,
-    "screen_capture_access": true
+    "screen_capture_access": true,
+    "signed_test_bundle": true
   },
   "cases": {
     "textedit": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Pasted SPVERIFY-63927B5B1 into a disposable TextEdit document; Accessibility text-area value matched exactly. The test document was deleted without saving.",
       "procedure": "Paste the verification marker into a disposable TextEdit document and compare the full text."
     },
     "notes": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Pasted SPVERIFY-63927B5B1 into a newly created Notes note; the rendered note matched. The disposable note was moved out of the active Notes folder afterward.",
       "procedure": "Paste into a disposable Notes note; verify text and remove the note afterward."
     },
     "vscode": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Pasted SPVERIFY-63927B5B1 into a temporary VS Code editor file, saved it, and compared the file bytes with the marker.",
       "procedure": "Paste into a temporary editor file and compare the full text."
     },
     "terminal-iterm": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "In Terminal, pasted SPVERIFY-63927B5B1 after a harmless comment prefix without a newline; the prompt showed the text and Control-U cleared it without execution.",
       "procedure": "Paste a harmless comment without a trailing newline into an idle terminal; clear it without executing."
     },
     "browser-field": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Pasted SPVERIFY-63927B5B1 into a local HTML textarea in Safari; the visible field matched exactly.",
       "procedure": "Paste into a local HTML textarea and compare the full text."
     },
     "slack": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Pasted SPVERIFY-63927B5B1 into Slack search, verified the full query in the search field, then cleared and dismissed it without sending a message.",
       "procedure": "Paste into a search field or an unsent disposable draft; clear it without sending."
     },
     "full-screen": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Entered full-screen TextEdit, opened the picker, pasted the marker, and verified the full text-area value; exited full screen.",
       "procedure": "Paste into a disposable document in a full-screen target app."
     },
     "second-display": {
       "status": "blocked",
-      "observed": "NSScreen.screens reported one display; this check requires an additional display.",
+      "observed": "MacBook Pro reported only its built-in display (NSScreen.screens.count = 1); an external display was unavailable for this check.",
       "procedure": "Open the picker from a target on a second display; verify placement and paste destination."
     },
     "another-space": {
       "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "observed": "Not verified on this build.",
       "procedure": "Open the picker and paste into a target on another macOS Space."
     },
     "secure-input-copy-only": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Enabled Terminal Secure Keyboard Entry and confirmed IsSecureEventInputEnabled() was true. Selecting the snippet copied the marker, left the terminal prompt unchanged, and showed the copy-only HUD. Disabled Secure Keyboard Entry and confirmed false.",
       "procedure": "Enable Secure Input in a disposable test target, use a snippet, and verify clipboard-only output and the HUD."
     },
     "accessibility-revoked-copy-only-banner": {
       "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "observed": "Not verified on this build.",
       "procedure": "Revoke only Sloppy Paste Accessibility access, verify copy-only behavior and the picker banner, then restore access."
     },
     "dvorak": {
       "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "observed": "Not verified on this build.",
       "procedure": "Select Dvorak, paste into a disposable target, and restore the original input source."
     },
     "rebuild-reinstall-keeps-accessibility": {
-      "status": "pass",
-      "observed": "just install rebuilt and installed release build 54 successfully. codesign --verify --strict passed. Before and after installation the designated requirement used dev.sglavoie.SloppyPaste and certificate leaf 66702a31d85a284398005c2e3a58cb920c8c97c3. The installed app menu reported Accessibility: Granted after launch without a new grant.",
+      "status": "pending",
+      "observed": "The prior build passed this check; see live-verification-initial.json. This signed test build ran from /tmp and was not reinstalled over the existing app.",
       "procedure": "Rebuild and reinstall with the same signing identity; verify the app still reports Accessibility granted."
     },
     "target-stays-frontmost": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "System Events reported DeviceHub, TextEdit, Safari, VS Code, and Terminal as frontmost while the picker window was open over each target.",
       "procedure": "Verify the target remains the frontmost application while the nonactivating picker is open."
     },
     "click-outside-hides": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Clicked the DeviceHub title bar outside the picker; the picker window count became zero and DeviceHub remained frontmost.",
       "procedure": "Click outside the picker and verify it closes while the target remains usable."
     },
     "escape-every-depth": {
       "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "observed": "Escape was observed from the root picker and editor, but the full list of depths has not been exercised.",
       "procedure": "Exercise Escape from search, list, action menu, placeholder form, editor, tag picker, history, and confirmation overlays."
     },
     "form-menus-stay-open": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Opened the placeholder form, clicked the tone dropdown, and observed both dropdown and form remain open; selected Casual and pasted the expected rendered text.",
       "procedure": "Open a placeholder dropdown; verify its menu and parent form stay open until selection or dismissal."
     },
     "filter-menus-stay-open": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Opened the tag filter menu, selected verification, and observed the picker remain open with three matching snippets.",
       "procedure": "Open tag/sort filter menus; verify the picker stays open through selection."
     },
     "placeholder-tab-order": {
       "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "observed": "Tab moved focus from the required name field to the tone dropdown; the remaining control types have not been exercised.",
       "procedure": "Tab and Shift-Tab through text, choice, custom-value, wrapper and guard controls; verify focus follows visible controls."
     },
     "display-disconnect-repositions": {
       "status": "blocked",
-      "observed": "NSScreen.screens reported one display; this check requires an additional display.",
+      "observed": "MacBook Pro reported only its built-in display (NSScreen.screens.count = 1); an external display was unavailable for this check.",
       "procedure": "Disconnect the display hosting the picker and verify the panel moves onto a remaining display."
     },
     "import-export-focus-return": {
       "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "observed": "Not verified on this build.",
       "procedure": "Open and cancel import and export panels from a disposable target; verify focus returns to the target."
     },
     "zoom-resizes-panel": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Measured the picker at 1140x720 points, reduced zoom to 950x600, reset to 760x480, then restored the original 1140x720 size.",
       "procedure": "Change zoom with Command-plus/minus/zero; compare panel dimensions and restore the original zoom."
     },
     "zoomed-clicks-hit-controls": {
       "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "observed": "The form dropdown and Actions item responded at 150% zoom; all field and control hit targets have not been checked.",
       "procedure": "At nondefault zoom, click visible fields, dropdowns and action controls; verify hit targets align."
     },
     "resume-draft-after-dismissal": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Created a disposable draft titled ZZ Live Verify Draft with exact test content, dismissed and reopened the picker, then resumed the draft and confirmed both fields matched.",
       "procedure": "Create a uniquely named disposable draft, dismiss/reopen the picker, resume it and verify exact text recovery."
     },
     "duplicate-opens-editor": {
-      "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "status": "pass",
+      "observed": "Duplicated ZZ Live Verify Duplicate from Actions; the copy opened in the editor with the expected title and content. Data inspection confirmed the original ID, title, and content were unchanged.",
       "procedure": "Duplicate a disposable snippet; verify the copy opens for editing without changing the source."
     },
     "settings-hotkey-recorder": {
       "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "observed": "Not verified on this build.",
       "procedure": "Record a temporary hotkey, verify it opens the picker, test cancel, then restore the original hotkey."
     },
     "launch-at-login": {
       "status": "pending",
-      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "observed": "Not verified on this build.",
       "procedure": "Verify login-item registration from the signed installed bundle; restore the original setting. Actual login launch requires a login cycle."
     }
   },
   "notes": [
-    "Do not interpret pending or blocked checks as passes.",
-    "The picker was observed at 200% zoom, 1800 by 1204 points; appearance alone does not verify click alignment.",
-    "No verification snippets were saved during the initial attempt."
+    "The signed test bundle ran only from a private temporary directory on the MacBook Pro; the installed app was not replaced.",
+    "The remote data file was restored byte-for-byte after testing (SHA-256 f75e8b4da97531827308887d03ef2d3d70552d11ee168847ab9fd0b88d4f3261; 8 original snippets). Exported preferences compared exactly before and after restoration.",
+    "Pending and blocked checks are not passes. The earlier installed-build result is retained in live-verification-initial.json."
   ]
 }

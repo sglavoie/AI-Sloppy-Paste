@@ -119,17 +119,67 @@ public enum PlaceholderSyntaxParser {
     /// Finds `{{…}}` expressions, consuming quoted conditional labels as a
     /// unit so braces and template examples in a label never become fields.
     static func scanExpressions(_ text: String) -> [ScannedExpression] {
-        let regex = /\{\{(#if\s+(?:[^}"]|"[^"]*")+|[^}]+)\}\}/.matchingSemantics(.unicodeScalar)
-        return text.matches(of: regex).map { match in
-            let start = text.utf16.distance(from: text.startIndex, to: match.range.lowerBound)
-            let length = text.utf16.distance(from: match.range.lowerBound, to: match.range.upperBound)
-            return ScannedExpression(
-                raw: String(match.output.0),
-                range: PlaceholderSourceRange(start: start, end: start + length),
-                indices: match.range,
-                content: String(match.output.1)
-            )
+        guard text.contains(/\{\{/.matchingSemantics(.unicodeScalar)) else { return [] }
+        let scalars = Array(text.unicodeScalars)
+        let count = scalars.count
+        guard count >= 5 else { return [] }
+        let indices = Array(text.unicodeScalars.indices) + [text.endIndex]
+        var offsets = [Int](repeating: 0, count: count + 1)
+        for index in scalars.indices {
+            offsets[index + 1] = offsets[index] + (scalars[index].value > 0xFFFF ? 2 : 1)
         }
+
+        // Cache where each candidate must end. Retrying a greedy regex at
+        // every unfinished opener rescans the same suffix quadratically,
+        // freezing live validation even for moderately sized pasted text.
+        var nextBrace = [Int](repeating: count, count: count + 1)
+        var conditionalEnd = nextBrace
+        var nextQuote: Int?
+        for index in scalars.indices.reversed() {
+            nextBrace[index] = scalars[index] == "}" ? index : nextBrace[index + 1]
+            switch scalars[index] {
+            case "}": conditionalEnd[index] = index
+            case "\"":
+                conditionalEnd[index] = nextQuote.map { conditionalEnd[$0 + 1] } ?? count
+                nextQuote = index
+            default: conditionalEnd[index] = conditionalEnd[index + 1]
+            }
+        }
+
+        func isClose(_ index: Int, after start: Int) -> Bool {
+            index > start && index + 1 < count && scalars[index + 1] == "}"
+        }
+
+        var result: [ScannedExpression] = []
+        var cursor = 0
+        while cursor + 1 < count {
+            guard scalars[cursor] == "{", scalars[cursor + 1] == "{" else {
+                cursor += 1
+                continue
+            }
+            let start = cursor + 2
+            var end = nextBrace[start]
+            if start + 3 < count,
+                scalars[start] == "#", scalars[start + 1] == "i", scalars[start + 2] == "f",
+                scalars[start + 3].properties.isWhitespace,
+                isClose(conditionalEnd[start], after: start + 4)
+            {
+                end = conditionalEnd[start]
+            }
+            guard isClose(end, after: start) else {
+                cursor += 1
+                continue
+            }
+            let range = indices[cursor]..<indices[end + 2]
+            result.append(ScannedExpression(
+                raw: String(text[range]),
+                range: PlaceholderSourceRange(start: offsets[cursor], end: offsets[end + 2]),
+                indices: range,
+                content: String(text[indices[start]..<indices[end]])
+            ))
+            cursor = end + 2
+        }
+        return result
     }
 
     private static func parseLegacyOccurrence(_ expression: ScannedExpression) -> ParsedValuePlaceholderOccurrence {

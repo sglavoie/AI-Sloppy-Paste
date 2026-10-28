@@ -52,6 +52,14 @@ import Testing
         #expect(process("{{TIME}}", now: 1_710_460_800_000) == "00:00")  // 2024-03-15T00:00:00Z
     }
 
+    @Test func templateExamplesInsideConditionalLabelsStayLiteral() {
+        let content = #"{{#if enabled "Include {{DATE}} here"}}Today: {{DATE}}{{/if}}"#
+        #expect(process(content) == #"{{#if enabled "Include {{DATE}} here"}}Today: 2024-03-15{{/if}}"#)
+        let fields = PlaceholderSyntaxParser.extractPlaceholders(process(content))
+        #expect(fields.map(\.key) == ["enabled"])
+        #expect(fields.first?.label == "Include {{DATE}} here")
+    }
+
     @Test func names() {
         #expect(SystemPlaceholders.names == ["DATE", "TIME", "DATETIME", "TODAY", "NOW", "YEAR", "MONTH", "DAY"])
         #expect(SystemPlaceholders.names.allSatisfy { SystemPlaceholders.value(for: $0, now: Self.now) != nil })

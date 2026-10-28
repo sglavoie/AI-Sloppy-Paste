@@ -17,7 +17,8 @@ struct HotKey: Codable, Hashable, Sendable {
 /// implementation can be swapped later.
 @MainActor
 protocol HotKeyCenter: AnyObject {
-    /// Replaces any existing registration with the given one.
+    /// Replaces an existing registration only after the new one succeeds.
+    /// A failed registration leaves the old hotkey active.
     func register(_ hotKey: HotKey, handler: @escaping @MainActor () -> Void) throws
     func unregister()
 }
@@ -38,13 +39,17 @@ final class CarbonHotKeyCenter: HotKeyCenter {
 
     private var hotKeyRef: EventHotKeyRef?
     private var hotKeyID: UInt32?
+    private var registeredHotKey: HotKey?
 
     init() {
         Self.installEventHandlerIfNeeded()
     }
 
     func register(_ hotKey: HotKey, handler: @escaping @MainActor () -> Void) throws {
-        unregister()
+        if registeredHotKey == hotKey, let hotKeyID {
+            Self.handlers[hotKeyID] = handler
+            return
+        }
         let id = Self.nextID
         Self.nextID += 1
 
@@ -60,9 +65,14 @@ final class CarbonHotKeyCenter: HotKeyCenter {
         guard status == noErr, let ref else {
             throw HotKeyRegistrationError(status: status)
         }
+        // Keep the old shortcut while Carbon checks whether the new one is
+        // available. It cannot be reclaimed by another app during a failed edit.
+        Self.handlers[id] = handler
+        if let oldRef = hotKeyRef { UnregisterEventHotKey(oldRef) }
+        if let oldID = hotKeyID { Self.handlers[oldID] = nil }
         hotKeyRef = ref
         hotKeyID = id
-        Self.handlers[id] = handler
+        registeredHotKey = hotKey
     }
 
     func unregister() {
@@ -74,6 +84,7 @@ final class CarbonHotKeyCenter: HotKeyCenter {
         }
         hotKeyRef = nil
         hotKeyID = nil
+        registeredHotKey = nil
     }
 
     private static func installEventHandlerIfNeeded() {

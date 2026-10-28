@@ -3,6 +3,7 @@ import Foundation
 public enum StorageError: Error, Equatable, LocalizedError {
     case unsupportedStorageVersion(Int)
     case invalidStorageVersion
+    case invalidCurrentStorageData(String)
     case dataChangedSinceRead
     case dataFileDisappeared
     case snippetNotFound
@@ -20,6 +21,8 @@ public enum StorageError: Error, Equatable, LocalizedError {
             "Storage version \(version) is newer than supported version \(StorageConstants.currentVersion). Update Sloppy Paste to open this file. The file has been left unchanged."
         case .invalidStorageVersion:
             "The file has an invalid storage version. It has been left unchanged."
+        case .invalidCurrentStorageData(let field):
+            "The current-version data file has an invalid or missing field at \(field). It has been left unchanged. Repair the file and try again."
         case .dataChangedSinceRead:
             "The data file changed while the operation was running. No changes were saved; try again."
         case .dataFileDisappeared:

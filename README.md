@@ -255,9 +255,11 @@ It uses the same `StorageData` JSON shape as the Raycast extension's export.
 - A data file with a newer storage version is left untouched and blocks changes
   and imports. Imports from newer export versions are also rejected before
   changing existing data. Update Sloppy Paste to a version that supports it.
-- On startup, a file that fails to decode is never overwritten. It is moved
-  aside as `data.corrupt-<timestamp>.json`, the app starts empty, and an alert
-  explains how to restore it. Later reloads leave malformed files in place.
+- On startup, an incomplete or undecodable file is never overwritten. It is
+  moved aside as `data.corrupt-<timestamp>.json`, the app starts empty, and an
+  alert explains how to restore it. A current-version file with a field of the
+  wrong type stays in place and blocks changes so it can be repaired. Later
+  reloads also leave malformed files in place.
 
 Settings → Data shows the path, with a Reveal button, and the storage size.
 

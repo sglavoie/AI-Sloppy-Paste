@@ -30,9 +30,44 @@ public struct LegacyStorageData: Decodable, Sendable, Hashable {
         // Check before decoding fields whose shape may have changed in a newer
         // version, so an unsupported document is never treated as corrupt.
         try StorageMigrations.requireSupportedVersion(in: c, forKey: .version)
+        if version == StorageConstants.currentVersion {
+            // A file written by this app has a known, complete shape. Decoding
+            // it as legacy data would silently discard malformed fields on the
+            // next save (for example, a string in place of a tags array).
+            let current: StorageData
+            do {
+                current = try StorageData(from: decoder)
+            } catch DecodingError.keyNotFound(let key, let context) {
+                // An incomplete startup write still follows the existing
+                // quarantine path, which preserves the partial bytes aside.
+                throw DecodingError.keyNotFound(key, context)
+            } catch let error as DecodingError {
+                throw StorageError.invalidCurrentStorageData(Self.fieldPath(in: error))
+            }
+            snippets = current.snippets.map(LegacySnippet.init)
+            tags = current.tags
+            placeholderHistory = current.placeholderHistory
+            return
+        }
         snippets = try c.decode([LegacySnippet].self, forKey: .snippets)
         tags = (try? c.decodeIfPresent([LossyString].self, forKey: .tags))?.compactMap(\.value) ?? []
         placeholderHistory = try c.decodeIfPresent(PlaceholderHistory.self, forKey: .placeholderHistory)
+    }
+
+    private static func fieldPath(in error: DecodingError) -> String {
+        let path: [any CodingKey]
+        switch error {
+        case .typeMismatch(_, let context), .valueNotFound(_, let context), .dataCorrupted(let context):
+            path = context.codingPath
+        case .keyNotFound(let key, let context):
+            path = context.codingPath + [key]
+        @unknown default:
+            return "the document"
+        }
+        let components = path.map { key in
+            key.intValue.map { "[\($0)]" } ?? key.stringValue
+        }
+        return components.isEmpty ? "the document" : components.joined(separator: ".").replacingOccurrences(of: ".[", with: "[")
     }
 }
 

@@ -158,7 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Shows the current global hotkey next to Open Picker.
     private func updateOpenPickerItem() {
         guard let item = openPickerItem else { return }
-        if let equivalent = hotKeys.hotKey.menuKeyEquivalent {
+        if let equivalent = hotKeys.activeHotKey?.menuKeyEquivalent {
             item.keyEquivalent = equivalent.key
             item.keyEquivalentModifierMask = equivalent.modifiers
         } else {

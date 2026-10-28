@@ -109,6 +109,9 @@ struct SettingsView: View {
             }
 
             Section("Data") {
+                if let error = store.lastError {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
                 LabeledContent("Data file") {
                     HStack {
                         Text(store.file.url.path(percentEncoded: false))
@@ -174,7 +177,7 @@ struct HotKeyRecorder: View {
             Button {
                 isRecording ? stopRecording() : startRecording()
             } label: {
-                Text(isRecording ? "Type shortcut…" : hotKeys.hotKey.displayString)
+                Text(isRecording ? "Type shortcut…" : hotKeys.activeHotKey?.displayString ?? "Set shortcut")
                     .frame(minWidth: 110)
             }
             .help(isRecording ? "Press the new shortcut, or ⎋ to cancel" : "Click to record a new shortcut")

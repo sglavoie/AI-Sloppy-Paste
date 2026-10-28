@@ -90,7 +90,7 @@ extension HotKey {
 
 /// The picker hotkey as stored in UserDefaults, registered with the
 /// `HotKeyCenter`. A hotkey that fails to register (taken by another app)
-/// is refused and the previous one stays active.
+/// is refused and the previous one stays active when it was registered.
 @MainActor
 @Observable
 final class HotKeySettings {
@@ -103,6 +103,9 @@ final class HotKeySettings {
     @ObservationIgnored private let center: HotKeyCenter
     @ObservationIgnored private let handler: @MainActor () -> Void
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private var registeredHotKey: HotKey?
+
+    var activeHotKey: HotKey? { registeredHotKey }
 
     init(center: HotKeyCenter, defaults: UserDefaults = .standard, handler: @escaping @MainActor () -> Void) {
         self.center = center
@@ -115,22 +118,40 @@ final class HotKeySettings {
     /// Registers the stored hotkey, falling back to the default if it fails.
     func registerStored() {
         if register(hotKey) { return }
-        let failure = registrationError
+        let failure = registrationError ?? "The saved shortcut is not available."
         if hotKey != .default, register(.default) {
             hotKey = .default
             persist(.default)
+            registrationError = "\(failure) Using the default shortcut instead."
+            return
         }
-        registrationError = failure
+        registrationError = "\(failure) No global shortcut is active. Choose another in Settings."
     }
 
-    /// Registers `next` and stores it. Returns false (keeping the old one) on failure.
+    /// Registers and stores `next`. On failure, keeps an active old shortcut,
+    /// or restores it or the default after recording suspended registration.
     @discardableResult
     func update(_ next: HotKey) -> Bool {
         let previous = hotKey
+        if registeredHotKey == next {
+            hotKey = next
+            persist(next)
+            registrationError = nil
+            return true
+        }
         guard register(next) else {
-            let failure = registrationError
-            register(previous)
-            registrationError = failure
+            let failure = registrationError ?? "The new shortcut is not available."
+            if registeredHotKey != nil {
+                registrationError = "\(failure) The previous shortcut is still active."
+            } else if register(previous) {
+                registrationError = "\(failure) The previous shortcut was restored."
+            } else if previous != .default, register(.default) {
+                hotKey = .default
+                persist(.default)
+                registrationError = "\(failure) The previous shortcut is also unavailable; the default shortcut is active."
+            } else {
+                registrationError = "\(failure) No global shortcut is active. Choose another in Settings."
+            }
             return false
         }
         hotKey = next
@@ -148,20 +169,32 @@ final class HotKeySettings {
     /// combination reaches the recorder instead of opening the picker.
     func suspend() {
         center.unregister()
+        registeredHotKey = nil
     }
 
     func resume() {
-        register(hotKey)
+        guard registeredHotKey == nil else { return }
+        if register(hotKey) { return }
+        let failure = registrationError ?? "The saved shortcut is not available."
+        if hotKey != .default, register(.default) {
+            hotKey = .default
+            persist(.default)
+            registrationError = "\(failure) Using the default shortcut instead."
+        } else {
+            registrationError = "\(failure) No global shortcut is active. Choose another in Settings."
+        }
     }
 
     func unregister() {
         center.unregister()
+        registeredHotKey = nil
     }
 
     @discardableResult
     private func register(_ hotKey: HotKey) -> Bool {
         do {
             try center.register(hotKey, handler: handler)
+            registeredHotKey = hotKey
             registrationError = nil
             return true
         } catch {

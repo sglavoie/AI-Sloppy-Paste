@@ -123,6 +123,29 @@ import SloppyCore
         #expect(store.data == original)
     }
 
+    @Test func malformedCurrentFieldKeepsLastGoodDataAndBlocksWrites() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "Keep", createdAt: 1, updatedAt: 1)])
+        try file.save(original)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+
+        let malformed = Data(#"{"version":7,"snippets":[{"id":"a","title":"A","content":"Keep","description":"","tags":"work","createdAt":1,"updatedAt":1,"useCount":0,"isFavorite":false,"isArchived":false,"isPinned":false}],"tags":[],"placeholderHistory":{}}"#.utf8)
+        try malformed.write(to: file.url, options: .atomic)
+        store.reloadIfChanged()
+
+        #expect(store.data == original)
+        #expect(store.lastError?.contains("snippets[0].tags") == true)
+        #expect(store.quarantinedURL == nil)
+        #expect(throws: (any Error).self) { try store.recordUse(id: "a") }
+        #expect(throws: (any Error).self) {
+            try store.importPayload(ImportPayload(snippets: []), mode: .replace)
+        }
+        #expect(try Data(contentsOf: file.url) == malformed)
+        #expect(!FileManager.default.fileExists(atPath: file.backupURL.path))
+    }
+
     @Test(arguments: [false, true])
     func writesPreserveExternalEditsWithUnchangedModificationDate(importing: Bool) throws {
         defer { try? FileManager.default.removeItem(at: directory) }

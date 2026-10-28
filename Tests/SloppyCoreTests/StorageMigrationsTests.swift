@@ -69,6 +69,19 @@ import Testing
         #expect(result.data == data)
     }
 
+    @Test(arguments: ["tags", "useCount", "isFavorite"])
+    func currentVersionRejectsMalformedSnippetFields(field: String) throws {
+        let valid = StorageData(snippets: [Snippet(id: "a", title: "A", content: "x", createdAt: 1, updatedAt: 1)])
+        var document = try #require(JSONSerialization.jsonObject(with: StorageCoding.encode(valid)) as? [String: Any])
+        var snippets = try #require(document["snippets"] as? [[String: Any]])
+        snippets[0][field] = "invalid"
+        document["snippets"] = snippets
+        let json = try JSONSerialization.data(withJSONObject: document)
+        #expect(throws: StorageError.invalidCurrentStorageData("snippets[0].\(field)")) {
+            try StorageMigrations.migrate(json: json)
+        }
+    }
+
     @Test func missingVersionIsStampedCurrent() throws {
         let result = try StorageMigrations.migrate(LegacyStorageData(version: nil))
         #expect(result.didMigrate)

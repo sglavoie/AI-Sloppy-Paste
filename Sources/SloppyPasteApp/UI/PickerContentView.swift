@@ -4,6 +4,7 @@ import SwiftUI
 struct PickerContentView: View {
     @Environment(Navigator.self) private var navigator
     @Environment(ActionMenu.self) private var actionMenu
+    @Environment(SnippetStore.self) private var store
 
     var body: some View {
         Group {
@@ -38,12 +39,21 @@ struct PickerContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .top, spacing: 0) {
-            if let error = navigator.draftRecoveryError {
-                Text(error)
-                    .font(.caption)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(.yellow.opacity(0.15))
+            VStack(spacing: 0) {
+                if let error = store.lastError {
+                    Text(error)
+                        .font(.caption)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background(.red.opacity(0.15))
+                }
+                if let error = navigator.draftRecoveryError {
+                    Text(error)
+                        .font(.caption)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background(.yellow.opacity(0.15))
+                }
             }
         }
         .overlay {

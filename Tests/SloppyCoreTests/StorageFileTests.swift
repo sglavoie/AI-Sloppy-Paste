@@ -154,6 +154,25 @@ import Testing
         #expect(try FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path) == ["data.json"])
     }
 
+    @Test func malformedCurrentFileIsNotQuarantinedOrChangedByImport() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let malformed = Data(#"{"version":7,"snippets":[{"id":"a","title":"A","content":"x","description":"","tags":"work","createdAt":1,"updatedAt":1,"useCount":3,"isFavorite":false,"isArchived":false,"isPinned":false}],"tags":[],"placeholderHistory":{}}"#.utf8)
+        try malformed.write(to: file.url)
+
+        #expect(throws: StorageError.invalidCurrentStorageData("snippets[0].tags")) { try file.load(now: 1) }
+        #expect(throws: StorageError.invalidCurrentStorageData("snippets[0].tags")) { try file.read() }
+        #expect(throws: StorageError.invalidCurrentStorageData("snippets[0].tags")) {
+            try file.withExclusiveLock {
+                let snapshot = try file.readSnapshot()
+                _ = try file.importPayload(ImportPayload(snippets: []), into: snapshot.data,
+                    mode: .merge, ifUnchangedFrom: snapshot)
+            }
+        }
+        #expect(try Data(contentsOf: file.url) == malformed)
+        #expect(try Set(FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path)) == ["data.json", "data.json.lock"])
+    }
+
     @Test func corruptFileIsQuarantinedNotOverwritten() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)

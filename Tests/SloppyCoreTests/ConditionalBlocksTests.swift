@@ -170,6 +170,27 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
         #expect(process("{{#if a}}{{#if b}}unclosed{{/if}}", ["a": "1", "b": "1"]) == "{{#if a}}unclosed")
     }
 
+    @Test func unfinishedOuterElsePreservesResolvedChildren() {
+        let text = "Before{{#if outer}}Yes{{#else}}No {{#if inner}}child{{/if}}{{/else}}"
+        #expect(process(text, ["inner": "true"]) == "Before{{#if outer}}Yes{{#else}}No child{{/else}}")
+        #expect(process("Before{{#else}}outside{{/if}}", [:]) == "Before{{#else}}outside{{/if}}")
+    }
+
+    @Test func largeNestedTemplateRendersInTheForm() {
+        // Below the editor's content limit, but repeated whole-document
+        // scans previously took many seconds and blocked the UI thread.
+        let depth = 4_000
+        let content = String(repeating: "{{#if +a}}", count: depth)
+            + "{{name}}" + String(repeating: "{{/if}}", count: depth)
+        #expect(content.count < ValidationLimits.contentMaxLength)
+        var form = PlaceholderFormModel(snippetContent: content,
+            placeholders: extract(content), history: [:], now: 0)
+        form.setCustomValue("name", "Ada")
+        #expect(form.previewContent == "Ada")
+        form.setEnabled("a", false)
+        #expect(form.previewContent.isEmpty)
+    }
+
     @Test(arguments: [11, 32])
     func deeplyNestedBlocksResolveCompletely(depth: Int) {
         let text = String(repeating: "{{#if a}}", count: depth) + "x" + String(repeating: "{{/if}}", count: depth)

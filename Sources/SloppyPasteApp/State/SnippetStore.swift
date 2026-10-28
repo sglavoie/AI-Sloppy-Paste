@@ -116,8 +116,13 @@ final class SnippetStore {
 
     /// Imports into the current data (reloaded first); a replace backs the
     /// file up to `data.json.bak` before writing.
-    func importPayload(_ payload: ImportPayload, mode: ImportMode) throws {
+    func importPayload(_ payload: ImportPayload, mode: ImportMode, expectedCurrent: StorageData? = nil) throws {
         try requireCurrentData()
+        if let expectedCurrent, data != expectedCurrent {
+            let error = ImportConflict()
+            lastError = error.localizedDescription
+            throw error
+        }
         do {
             data = try file.importPayload(payload, into: data, mode: mode)
             lastError = nil
@@ -125,6 +130,12 @@ final class SnippetStore {
         } catch {
             lastError = error.localizedDescription
             throw error
+        }
+    }
+
+    private struct ImportConflict: LocalizedError {
+        var errorDescription: String? {
+            "The snippet data changed while the import dialog was open. No changes were saved. Review the import again."
         }
     }
 

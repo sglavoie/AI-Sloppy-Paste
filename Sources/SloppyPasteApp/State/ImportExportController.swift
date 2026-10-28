@@ -66,11 +66,17 @@ final class ImportExportController {
                 return
             }
 
-            store.reloadIfChanged()
-            guard let mode = askImportMode(payload, fileName: url.lastPathComponent) else { return }
-            let summary = ImportSummary(payload, current: store.data, mode: mode)
             do {
-                try store.importPayload(payload, mode: mode)
+                try store.requireCurrentData()
+            } catch {
+                failImport(error.localizedDescription)
+                return
+            }
+            let current = store.data
+            guard let mode = askImportMode(payload, fileName: url.lastPathComponent) else { return }
+            let summary = ImportSummary(payload, current: current, mode: mode)
+            do {
+                try store.importPayload(payload, mode: mode, expectedCurrent: current)
                 hud.show("Import successful", message: summary.resultMessage, symbol: "square.and.arrow.down")
             } catch {
                 failImport(error.localizedDescription)

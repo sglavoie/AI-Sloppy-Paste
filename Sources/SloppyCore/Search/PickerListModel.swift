@@ -57,7 +57,8 @@ public enum PickerListModel {
     ) -> PickerListState {
         // TS computed the recent snippets and then hid the section, which dropped
         // them from the list; deciding up front keeps them in the main section.
-        let recentVisible = showRecentSection && !options.showArchivedSnippets && !options.showNeedsAttention
+        let archiveQuery = QueryParser.parse(query).isFilters.contains(.archived)
+        let recentVisible = showRecentSection && !options.showArchivedSnippets && !archiveQuery && !options.showNeedsAttention
             && snippets.count(where: { !$0.isArchived }) >= recentSectionMinimumSnippets
         let list = SnippetListPipeline.build(
             snippets, query: query, options: options, sort: sort, showRecentSection: recentVisible, now: now)

@@ -86,13 +86,16 @@ public struct StorageFile: Sendable, Hashable {
             // Unsupported versions must block writes, not start an empty store.
             throw error
         } catch {
+            // An editor may have repaired or replaced the file while decoding.
+            // Never quarantine bytes other than the ones that failed to decode.
+            try verifyUnchanged(Snapshot(data: .empty, bytes: contents))
             let quarantined = quarantineURL(now: now)
             try FileManager.default.moveItem(at: url, to: quarantined)
             return LoadResult(data: .empty, didMigrate: false, quarantinedURL: quarantined)
         }
 
         if result.didMigrate {
-            try save(result.data)
+            try save(result.data, ifUnchangedFrom: Snapshot(data: result.data, bytes: contents))
         }
         return LoadResult(data: result.data, didMigrate: result.didMigrate, quarantinedURL: nil)
     }

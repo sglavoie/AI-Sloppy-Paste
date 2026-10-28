@@ -1,6 +1,7 @@
 import Foundation
 
-/// Storage data as decoded before migration: every top-level field may be missing.
+/// Storage data as decoded before migration: metadata may be missing, but a
+/// document must contain a snippets array to be recognized as storage data.
 public struct LegacyStorageData: Decodable, Sendable, Hashable {
     public var version: Int?
     public var snippets: [LegacySnippet]
@@ -29,7 +30,7 @@ public struct LegacyStorageData: Decodable, Sendable, Hashable {
         // Check before decoding fields whose shape may have changed in a newer
         // version, so an unsupported document is never treated as corrupt.
         try StorageMigrations.requireSupportedVersion(in: c, forKey: .version)
-        snippets = try c.decodeIfPresent([LegacySnippet].self, forKey: .snippets) ?? []
+        snippets = try c.decode([LegacySnippet].self, forKey: .snippets)
         tags = (try? c.decodeIfPresent([LossyString].self, forKey: .tags))?.compactMap(\.value) ?? []
         placeholderHistory = try c.decodeIfPresent(PlaceholderHistory.self, forKey: .placeholderHistory)
     }

@@ -168,6 +168,20 @@ import Testing
         #expect(result.data == .empty)
     }
 
+    @Test func incompleteObjectIsQuarantinedNotRewritten() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let incomplete = Data(#"{"version":7}"#.utf8)
+        try incomplete.write(to: file.url)
+
+        let result = try file.load(now: 1234)
+
+        let quarantined = try #require(result.quarantinedURL)
+        #expect(try Data(contentsOf: quarantined) == incomplete)
+        #expect(!FileManager.default.fileExists(atPath: file.url.path))
+        #expect(result.data == .empty)
+    }
+
     @Test func secondQuarantineInTheSameMillisecondKeepsTheFirst() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)

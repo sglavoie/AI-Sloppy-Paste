@@ -75,6 +75,12 @@ import Testing
         #expect(result.data.version == StorageConstants.currentVersion)
     }
 
+    @Test func unversionedDocumentWithSnippetsIsMigrated() throws {
+        let result = try StorageMigrations.migrate(json: Data(#"{"snippets":[]}"#.utf8))
+        #expect(result.didMigrate)
+        #expect(result.data == .empty)
+    }
+
     @Test(arguments: ["1.0.0", "7.0.0"])
     func readingExportsPreservesHistory(version: String) throws {
         let json = #"{"version":"\#(version)","snippets":[],"placeholderHistory":{"name":[{"value":"Ada","useCount":1,"lastUsed":2,"createdAt":1}]}}"#
@@ -97,5 +103,8 @@ import Testing
     @Test func invalidDocumentThrows() {
         #expect(throws: (any Error).self) { try StorageMigrations.migrate(json: Data("[1, 2]".utf8)) }
         #expect(throws: (any Error).self) { try StorageMigrations.migrate(json: Data("{not json".utf8)) }
+        #expect(throws: (any Error).self) { try StorageMigrations.migrate(json: Data("{}".utf8)) }
+        #expect(throws: (any Error).self) { try StorageMigrations.migrate(json: Data(#"{"version":7}"#.utf8)) }
+        #expect(throws: (any Error).self) { try StorageMigrations.migrate(json: Data(#"{"snippets":null}"#.utf8)) }
     }
 }

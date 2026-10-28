@@ -192,9 +192,7 @@ final class PickerPanelController {
 
     func show() {
         let frontmost = NSWorkspace.shared.frontmostApplication
-        if frontmost?.processIdentifier != ProcessInfo.processInfo.processIdentifier {
-            previousApp = frontmost
-        }
+        previousApp = Self.pasteTarget(frontmost: frontmost, ownPID: ProcessInfo.processInfo.processIdentifier)
         store.reloadIfChanged()
         accessibility.refresh()
         keyRouter.closeActionMenu(restoringFocus: false)
@@ -205,6 +203,12 @@ final class PickerPanelController {
         // Clear focus after makeKey, which can pick the search field as the
         // first key view: the list, not the search field, takes keys on open.
         panel.makeFirstResponder(nil)
+    }
+
+    /// A new picker session must not inherit a target from an earlier one.
+    static func pasteTarget(frontmost: NSRunningApplication?, ownPID: pid_t) -> NSRunningApplication? {
+        guard let frontmost, frontmost.processIdentifier != ownPID else { return nil }
+        return frontmost
     }
 
     /// Shows the panel on `route` (above the root), e.g. New Snippet from the menu bar.

@@ -148,7 +148,8 @@ import SloppyCore
         #expect(try Data(contentsOf: file.backupURL) == StorageCoding.encode(external))
     }
 
-    @Test func partialExternalWritePreservesLoadedDataAndBlocksEdits() throws {
+    @Test(arguments: ["{unfinished", #"{"version":7}"#])
+    func partialExternalWritePreservesLoadedDataAndBlocksEdits(incomplete: String) throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = StorageFile(url: directory.appending(path: "data.json"))
         let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "Keep", createdAt: 1, updatedAt: 1)])
@@ -156,11 +157,11 @@ import SloppyCore
         let store = SnippetStore(file: file, now: { 10 })
         store.load()
 
-        try Data("{unfinished".utf8).write(to: file.url)
+        try Data(incomplete.utf8).write(to: file.url)
         #expect(throws: (any Error).self) { try store.requireCurrentData() }
         #expect(store.data == original)
         #expect(store.quarantinedURL == nil)
-        #expect(try String(contentsOf: file.url, encoding: .utf8) == "{unfinished")
+        #expect(try String(contentsOf: file.url, encoding: .utf8) == incomplete)
         #expect(throws: (any Error).self) { try store.recordUse(id: "a") }
 
         try file.save(original)

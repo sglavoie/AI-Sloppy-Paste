@@ -329,13 +329,18 @@ the store's migration, backup, and quarantine behavior.
   the Command Line Tools plugin path. Make sure
   `xcode-select -p` points at `/Library/Developer/CommandLineTools`.
 
-## Live verification (pending)
+## Live verification (incomplete)
 
-The live verification matrix hasn't been run on the signed, installed app yet.
-It's waived for now as a manual follow-up. After running it, record the results
-in `Docs/live-verification.json` with `tested_build`, `tested_at`, `tester`,
-`overall: "pass"`, and one `cases.<key>` entry per check, each with
-`status: "pass"` and a concrete `observed` result. Keys:
+Partial results and the procedure for each check are recorded in
+[`Docs/live-verification.json`](Docs/live-verification.json). The signed rebuild
+and reinstall retained Accessibility access. The remaining UI checks need an
+idle desktop, and the display checks need a second display. Automated tests
+do not count as live verification.
+
+Update the report with `tested_build`, `tested_at`, `tester`, and one
+`cases.<key>` entry per check, each with its actual `status` and a concrete
+`observed` result. Keep `overall: "incomplete"` while any checks are pending or
+blocked; use `overall: "pass"` only after every check passes. Keys:
 
 - Paste targets: `textedit`, `notes`, `vscode`, `terminal-iterm`,
   `browser-field`, `slack`, `full-screen`, `second-display`, `another-space`.

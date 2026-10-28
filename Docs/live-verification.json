@@ -1,0 +1,161 @@
+{
+  "tested_build": {
+    "commit": "93b3b3b6bcd9fad08a45b3bf9dbdf2c8a189774a",
+    "version": "0.1.0",
+    "build_number": "54",
+    "configuration": "release",
+    "installation": "~/Applications/SloppyPaste.app",
+    "executable_sha256": "38b45b74420d23ce4614400d488bf1902f17398ec58d295a74510536bef62fc1"
+  },
+  "tested_at": "2026-10-28T14:29:23+00:00",
+  "tester": "Codex via macOS Accessibility API and local shell",
+  "overall": "incomplete",
+  "environment": {
+    "macos": "27.0.1 (26A434)",
+    "display_count": 1,
+    "automation_accessibility": true,
+    "screen_capture_access": true
+  },
+  "cases": {
+    "textedit": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Paste the verification marker into a disposable TextEdit document and compare the full text."
+    },
+    "notes": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Paste into a disposable Notes note; verify text and remove the note afterward."
+    },
+    "vscode": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Paste into a temporary editor file and compare the full text."
+    },
+    "terminal-iterm": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Paste a harmless comment without a trailing newline into an idle terminal; clear it without executing."
+    },
+    "browser-field": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Paste into a local HTML textarea and compare the full text."
+    },
+    "slack": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Paste into a search field or an unsent disposable draft; clear it without sending."
+    },
+    "full-screen": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Paste into a disposable document in a full-screen target app."
+    },
+    "second-display": {
+      "status": "blocked",
+      "observed": "NSScreen.screens reported one display; this check requires an additional display.",
+      "procedure": "Open the picker from a target on a second display; verify placement and paste destination."
+    },
+    "another-space": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Open the picker and paste into a target on another macOS Space."
+    },
+    "secure-input-copy-only": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Enable Secure Input in a disposable test target, use a snippet, and verify clipboard-only output and the HUD."
+    },
+    "accessibility-revoked-copy-only-banner": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Revoke only Sloppy Paste Accessibility access, verify copy-only behavior and the picker banner, then restore access."
+    },
+    "dvorak": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Select Dvorak, paste into a disposable target, and restore the original input source."
+    },
+    "rebuild-reinstall-keeps-accessibility": {
+      "status": "pass",
+      "observed": "just install rebuilt and installed release build 54 successfully. codesign --verify --strict passed. Before and after installation the designated requirement used dev.sglavoie.SloppyPaste and certificate leaf 66702a31d85a284398005c2e3a58cb920c8c97c3. The installed app menu reported Accessibility: Granted after launch without a new grant.",
+      "procedure": "Rebuild and reinstall with the same signing identity; verify the app still reports Accessibility granted."
+    },
+    "target-stays-frontmost": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Verify the target remains the frontmost application while the nonactivating picker is open."
+    },
+    "click-outside-hides": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Click outside the picker and verify it closes while the target remains usable."
+    },
+    "escape-every-depth": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Exercise Escape from search, list, action menu, placeholder form, editor, tag picker, history, and confirmation overlays."
+    },
+    "form-menus-stay-open": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Open a placeholder dropdown; verify its menu and parent form stay open until selection or dismissal."
+    },
+    "filter-menus-stay-open": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Open tag/sort filter menus; verify the picker stays open through selection."
+    },
+    "placeholder-tab-order": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Tab and Shift-Tab through text, choice, custom-value, wrapper and guard controls; verify focus follows visible controls."
+    },
+    "display-disconnect-repositions": {
+      "status": "blocked",
+      "observed": "NSScreen.screens reported one display; this check requires an additional display.",
+      "procedure": "Disconnect the display hosting the picker and verify the panel moves onto a remaining display."
+    },
+    "import-export-focus-return": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Open and cancel import and export panels from a disposable target; verify focus returns to the target."
+    },
+    "zoom-resizes-panel": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Change zoom with Command-plus/minus/zero; compare panel dimensions and restore the original zoom."
+    },
+    "zoomed-clicks-hit-controls": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "At nondefault zoom, click visible fields, dropdowns and action controls; verify hit targets align."
+    },
+    "resume-draft-after-dismissal": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Create a uniquely named disposable draft, dismiss/reopen the picker, resume it and verify exact text recovery."
+    },
+    "duplicate-opens-editor": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Duplicate a disposable snippet; verify the copy opens for editing without changing the source."
+    },
+    "settings-hotkey-recorder": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Record a temporary hotkey, verify it opens the picker, test cancel, then restore the original hotkey."
+    },
+    "launch-at-login": {
+      "status": "pending",
+      "observed": "Not yet verified; awaiting an idle desktop for reliable UI input.",
+      "procedure": "Verify login-item registration from the signed installed bundle; restore the original setting. Actual login launch requires a login cycle."
+    }
+  },
+  "notes": [
+    "Do not interpret pending or blocked checks as passes.",
+    "The picker was observed at 200% zoom, 1800 by 1204 points; appearance alone does not verify click alignment.",
+    "No verification snippets were saved during the initial attempt."
+  ]
+}

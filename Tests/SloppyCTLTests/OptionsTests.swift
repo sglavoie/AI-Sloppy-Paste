@@ -29,4 +29,9 @@ import SloppyCore
     @Test func unknownOptionsStillFailBeforeTerminator() {
         #expect(throws: CommandError.self) { try Options(["--unknown"][...]) }
     }
+
+    @Test(arguments: [["--merge", "--replace"], ["--replace", "--merge"]])
+    func conflictingImportModesFail(flags: [String]) {
+        #expect(throws: CommandError.self) { try Options(flags[...]) }
+    }
 }

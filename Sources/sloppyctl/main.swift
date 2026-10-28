@@ -81,6 +81,7 @@ struct Options {
     var sort = SortOption.updatedDesc
 
     init(_ arguments: ArraySlice<String>) throws {
+        var selectedImportMode: ImportMode?
         var iterator = arguments.makeIterator()
         while let argument = iterator.next() {
             switch argument {
@@ -90,8 +91,13 @@ struct Options {
             case "--data":
                 guard let path = iterator.next() else { throw CommandError(description: "--data needs a path") }
                 dataURL = URL(filePath: (path as NSString).expandingTildeInPath)
-            case "--merge": mode = .merge
-            case "--replace": mode = .replace
+            case "--merge", "--replace":
+                let requested: ImportMode = argument == "--merge" ? .merge : .replace
+                if let selectedImportMode, selectedImportMode != requested {
+                    throw CommandError(description: "--merge and --replace cannot be used together")
+                }
+                selectedImportMode = requested
+                mode = requested
             case "--json": json = true
             case "--text", "--file", "--id":
                 guard let value = iterator.next() else { throw CommandError(description: "\(argument) needs a value") }

@@ -15,10 +15,7 @@ final class SnippetStore {
 
     @ObservationIgnored let file: StorageFile
     @ObservationIgnored var now: () -> Int64
-    @ObservationIgnored private var loadedModificationDate: Date?
-    @ObservationIgnored private var hasLoaded = false
     @ObservationIgnored private var hasLoadedFile = false
-    @ObservationIgnored private var loadFailure: String?
     @ObservationIgnored private var watcher: FileWatcher?
     /// Called when the startup load moved an undecodable file aside.
     @ObservationIgnored var onQuarantine: ((URL) -> Void)?
@@ -43,12 +40,8 @@ final class SnippetStore {
                 onQuarantine?(quarantined)
             }
             lastError = nil
-            loadFailure = nil
-            hasLoaded = true
             hasLoadedFile = filePresent
-            loadedModificationDate = currentModificationDate()
         } catch {
-            loadFailure = error.localizedDescription
             lastError = error.localizedDescription
         }
     }
@@ -64,15 +57,16 @@ final class SnippetStore {
         }
     }
 
-    /// Reloads when the file changed on disk since the last load or save.
+    /// Refreshes from disk before presenting data. External writers can replace
+    /// the file while preserving its modification date, so that date alone
+    /// cannot tell us whether the displayed snippets are current.
     func reloadIfChanged() {
-        guard !hasLoaded || loadFailure != nil || currentModificationDate() != loadedModificationDate else { return }
         _ = try? requireCurrentData()
     }
 
     /// Always reads before deriving data that will be written back to disk.
-    /// Modification dates can be preserved by external writers, so they are
-    /// only a UI refresh optimization, not a safe check before a mutation.
+    /// External writers may preserve modification dates, so both presentation
+    /// and mutation use the file contents as the source of truth.
     @discardableResult
     func requireCurrentData() throws -> StorageFile.Snapshot {
         do {
@@ -80,13 +74,9 @@ final class SnippetStore {
             if hasLoadedFile && snapshot.bytes == nil { throw StorageError.dataFileDisappeared }
             data = snapshot.data
             lastError = nil
-            loadFailure = nil
-            hasLoaded = true
             hasLoadedFile = snapshot.bytes != nil
-            loadedModificationDate = currentModificationDate()
             return snapshot
         } catch {
-            loadFailure = error.localizedDescription
             lastError = error.localizedDescription
             throw ReloadFailure(reason: error.localizedDescription)
         }
@@ -126,7 +116,6 @@ final class SnippetStore {
             data = next
             lastError = nil
             hasLoadedFile = true
-            loadedModificationDate = currentModificationDate()
         } catch {
             lastError = error.localizedDescription
             throw error
@@ -147,7 +136,6 @@ final class SnippetStore {
                 data = try file.importPayload(payload, into: snapshot.data, mode: mode, ifUnchangedFrom: snapshot)
                 lastError = nil
                 hasLoadedFile = true
-                loadedModificationDate = currentModificationDate()
             } catch {
                 lastError = error.localizedDescription
                 throw error
@@ -163,10 +151,5 @@ final class SnippetStore {
 
     func clearQuarantineNotice() {
         quarantinedURL = nil
-    }
-
-    private func currentModificationDate() -> Date? {
-        // FileManager rather than URL resource values, which NSURL caches.
-        (try? FileManager.default.attributesOfItem(atPath: file.url.path))?[.modificationDate] as? Date
     }
 }

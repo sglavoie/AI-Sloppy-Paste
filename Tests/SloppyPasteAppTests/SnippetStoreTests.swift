@@ -121,6 +121,29 @@ import SloppyCore
         #expect(try file.read().snippets[0].content == "Modified")
     }
 
+    @Test func pickerRefreshSeesExternalEditWithUnchangedModificationDate() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let original = StorageData(snippets: [
+            Snippet(id: "a", title: "A", content: "Original", createdAt: 1, updatedAt: 1)
+        ])
+        try file.save(original)
+        try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_700_000_000)],
+            ofItemAtPath: file.url.path)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+        let modified = try #require(file.modificationDate())
+
+        var external = original
+        external.snippets[0].content = "External edit"
+        try file.save(external)
+        try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: file.url.path)
+        #expect(file.modificationDate() == modified)
+
+        store.reloadIfChanged()
+        #expect(store.snippets[0].content == "External edit")
+    }
+
     @Test func replaceImportRejectsChangesMadeAfterConfirmation() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = StorageFile(url: directory.appending(path: "data.json"))

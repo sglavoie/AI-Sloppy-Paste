@@ -6,6 +6,36 @@ import SloppyCore
 @Suite @MainActor struct SnippetStoreTests {
     let directory = FileManager.default.temporaryDirectory.appending(path: "SloppyStoreTests-\(UUID().uuidString)")
 
+    @Test func openFormRejectsExternalContentChangesButAllowsMetadataChanges() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let original = StorageData(snippets: [
+            Snippet(id: "a", title: "A", content: "Hello {{name}}", createdAt: 1, updatedAt: 1)
+        ])
+        try file.save(original)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+
+        var external = original
+        external.snippets[0].title = "Renamed"
+        try file.save(external)
+        try store.requireUnchangedSnippetContent(id: "a", expectedContent: original.snippets[0].content)
+
+        external.snippets[0].content = "Changed {{name}}"
+        try file.save(external)
+        #expect(throws: (any Error).self) {
+            try store.requireUnchangedSnippetContent(id: "a", expectedContent: original.snippets[0].content)
+        }
+        #expect(store.snippets[0].content == "Changed {{name}}")
+        #expect(try file.read() == external)
+
+        external.snippets.removeAll()
+        try file.save(external)
+        #expect(throws: (any Error).self) {
+            try store.requireUnchangedSnippetContent(id: "a", expectedContent: original.snippets[0].content)
+        }
+    }
+
     @Test func failedReloadBlocksMutationsAndImportsUntilAReadSucceeds() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = StorageFile(url: directory.appending(path: "data.json"))

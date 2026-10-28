@@ -62,6 +62,9 @@ If a snippet's title, content, description, or tags changed while its draft was
 open or in recovery, saving stops and preserves both versions. Copy your draft
 edits before discarding it, then reopen the snippet to review the latest version.
 Usage counts and bookmark, archive, or pin changes do not block a draft save.
+If a snippet's content changes while its placeholder form is open, submitting
+stops and keeps the entered values. Go back and reopen the snippet to use its
+latest content.
 
 ⇧⌘D duplicates the selected snippet and opens the copy for editing. Snippet
 content is saved exactly as entered, including indentation and surrounding
@@ -225,6 +228,8 @@ tccutil reset Accessibility dev.sglavoie.SloppyPaste
 The hotkey uses Carbon's `RegisterEventHotKey`, which needs no permission. You
 can change it in Settings → General. If another app already uses the chord,
 Settings says it is not available and the previous hotkey stays active.
+If the saved hotkey is unavailable at launch, the app registers and saves the
+default shortcut instead, so later launches use the same shortcut.
 
 ### Launch at login
 

@@ -73,6 +73,36 @@ struct TestFailure: Error, Equatable {
         #expect(calls.all == ["primary prepared content", "record snippet-123 [\"name=Ada/true\"]"])
     }
 
+    @Test func changedClipboardDoesNotRecordUseOrPlaceholderHistory() async {
+        let ok = await use().run(
+            snippetID: "snippet-123",
+            placeholderValues: [.init(key: "name", value: "Ada")],
+            prepare: { "prepared content" },
+            primaryOperation: { [calls] _ in
+                calls.append("paste cancelled")
+                return PasteOutcome.copiedOnly(.clipboardChanged)
+            },
+            shouldRecord: { $0 != .copiedOnly(.clipboardChanged) },
+            onPreparationFailure: { _ in },
+            onPrimaryFailure: { _ in }
+        )
+        #expect(!ok)
+        #expect(calls.all == ["paste cancelled"])
+    }
+
+    @Test func copyOnlyFallbackStillRecordsUse() async {
+        let ok = await use().run(
+            snippetID: "snippet-123",
+            prepare: { "prepared content" },
+            primaryOperation: { _ in PasteOutcome.copiedOnly(.targetUnavailable) },
+            shouldRecord: { $0 != .copiedOnly(.clipboardChanged) },
+            onPreparationFailure: { _ in },
+            onPrimaryFailure: { _ in }
+        )
+        #expect(ok)
+        #expect(calls.all == ["record snippet-123 []"])
+    }
+
     @Test func failureHandlerErrorsAreSwallowedAndLogged() async {
         let ok = await use().run(
             snippetID: "snippet-123",

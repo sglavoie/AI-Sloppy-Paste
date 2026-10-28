@@ -251,8 +251,8 @@ final class PickerPanelController {
     }
 
     /// Pastes or copies the prepared content, reports the outcome in a HUD,
-    /// and then records the use. The panel hides first unless the mode is
-    /// `.copyAndStay`.
+    /// and then records the use if delivery succeeded. The panel hides first
+    /// unless the mode is `.copyAndStay`.
     func deliver(_ prepared: PreparedSnippet, snippetID: String, mode: DeliveryMode) {
         let target = previousApp
         if mode != .copyAndStay {
@@ -263,9 +263,10 @@ final class PickerPanelController {
                 snippetID: snippetID,
                 placeholderValues: prepared.placeholderValues,
                 prepare: { prepared },
-                primaryOperation: { [weak self] prepared in
-                    try await self?.performDelivery(prepared.content, mode: mode, target: target)
+                primaryOperation: { [self] prepared in
+                    try await performDelivery(prepared.content, mode: mode, target: target)
                 },
+                shouldRecord: { $0 != .copiedOnly(.clipboardChanged) },
                 onPreparationFailure: { _ in },
                 onPrimaryFailure: { [weak self] error in
                     await self?.hud.show("Could Not Copy", message: String(describing: error), symbol: "xmark.octagon")
@@ -274,7 +275,7 @@ final class PickerPanelController {
         }
     }
 
-    private func performDelivery(_ content: String, mode: DeliveryMode, target: NSRunningApplication?) async throws {
+    private func performDelivery(_ content: String, mode: DeliveryMode, target: NSRunningApplication?) async throws -> PasteOutcome {
         let outcome: PasteOutcome
         switch mode {
         case .paste:
@@ -285,11 +286,12 @@ final class PickerPanelController {
         case .copyAndStay:
             try Pasteboard.copy(content)
             hud.show("Copied to Clipboard", message: "Picker stays open for more copies")
-            return
+            return .copied
         }
         if let hud = outcome.hud {
             self.hud.show(hud.title, message: hud.message)
         }
+        return outcome
     }
 
     /// Shows a failure notice, e.g. when Paste with Last Values has no history.

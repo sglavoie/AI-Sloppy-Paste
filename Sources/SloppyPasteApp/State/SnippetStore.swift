@@ -82,6 +82,21 @@ final class SnippetStore {
         }
     }
 
+    /// A placeholder form may stay open while an external writer edits its
+    /// snippet. Check the source text again before using the form's rendering.
+    func requireUnchangedSnippetContent(id: String, expectedContent: String) throws {
+        let snapshot = try requireCurrentData()
+        guard snapshot.data.snippets.first(where: { $0.id == id })?.content == expectedContent else {
+            throw SnippetContentChanged()
+        }
+    }
+
+    private struct SnippetContentChanged: LocalizedError {
+        var errorDescription: String? {
+            "The snippet changed while this form was open. Your entries are still here. Go back and reopen the snippet to use its latest content."
+        }
+    }
+
     private struct ReloadFailure: LocalizedError, CustomStringConvertible {
         var reason: String
         var errorDescription: String? { description }

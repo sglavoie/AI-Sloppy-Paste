@@ -34,12 +34,13 @@ public struct SnippetUse: Sendable {
     }
 
     /// Returns true only when preparation and the primary operation both
-    /// succeeded; tracking runs only after that.
-    public func run<Prepared: Sendable>(
+    /// succeeded and the outcome counts as a use. Tracking runs after that.
+    public func run<Prepared: Sendable, Outcome: Sendable>(
         snippetID: String,
         placeholderValues: [PlaceholderValueToRecord] = [],
         prepare: @Sendable () async throws -> Prepared,
-        primaryOperation: @Sendable (Prepared) async throws -> Void,
+        primaryOperation: @Sendable (Prepared) async throws -> Outcome,
+        shouldRecord: @Sendable (Outcome) -> Bool = { _ in true },
         onPreparationFailure: @Sendable (any Error) async throws -> Void,
         onPrimaryFailure: @Sendable (any Error) async throws -> Void
     ) async -> Bool {
@@ -51,13 +52,15 @@ public struct SnippetUse: Sendable {
             return false
         }
 
+        let outcome: Outcome
         do {
-            try await primaryOperation(prepared)
+            outcome = try await primaryOperation(prepared)
         } catch {
             await runBestEffort("Unable to show primary clipboard failure") { try await onPrimaryFailure(error) }
             return false
         }
 
+        guard shouldRecord(outcome) else { return false }
         await recordUseBestEffort(snippetID: snippetID, placeholderValues: placeholderValues)
         return true
     }

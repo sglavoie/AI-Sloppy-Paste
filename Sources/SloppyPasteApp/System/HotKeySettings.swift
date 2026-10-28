@@ -118,6 +118,7 @@ final class HotKeySettings {
         let failure = registrationError
         if hotKey != .default, register(.default) {
             hotKey = .default
+            persist(.default)
         }
         registrationError = failure
     }
@@ -133,10 +134,14 @@ final class HotKeySettings {
             return false
         }
         hotKey = next
-        if let data = try? JSONEncoder().encode(next) {
+        persist(next)
+        return true
+    }
+
+    private func persist(_ hotKey: HotKey) {
+        if let data = try? JSONEncoder().encode(hotKey) {
             defaults.set(data, forKey: Self.defaultsKey)
         }
-        return true
     }
 
     /// Frees the hotkey while the recorder listens, so pressing the current

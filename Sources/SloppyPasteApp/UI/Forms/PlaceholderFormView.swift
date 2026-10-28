@@ -19,6 +19,7 @@ struct PlaceholderFormView: View {
     private var maxDisplayedHistoryValues = StorageConstants.defaultMaxDisplayedHistoryValues
 
     @ViewState private var snippet: Snippet?
+    @ViewState private var sourceContent: String?
     @ViewState private var model: PlaceholderFormModel?
     @ViewState private var focusedStop: PlaceholderFocusStop?
     @FocusState private var textFocus: PlaceholderFocusStop?
@@ -239,6 +240,7 @@ struct PlaceholderFormView: View {
 
     private func start() {
         guard model == nil, let stored = store.snippets.first(where: { $0.id == snippetID }) else { return }
+        sourceContent = stored.content
         switch SnippetPreparation.plan(for: stored, now: store.now()) {
         case .form(let request):
             snippet = request.snippet
@@ -258,7 +260,13 @@ struct PlaceholderFormView: View {
     }
 
     private func submit(_ submitMode: PlaceholderFormMode) {
-        guard var form = model, let snippet else { return }
+        guard var form = model, let snippet, let sourceContent else { return }
+        do {
+            try store.requireUnchangedSnippetContent(id: snippet.id, expectedContent: sourceContent)
+        } catch {
+            pickerPanel?.showFailure("Could Not Use Snippet", message: error.localizedDescription)
+            return
+        }
         let prepared = form.prepareSubmission()
         model = form
         guard let prepared else {

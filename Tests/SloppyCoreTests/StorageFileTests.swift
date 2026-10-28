@@ -82,6 +82,48 @@ import Testing
         #expect(try FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path) == ["data.json"])
     }
 
+    @Test func snapshotRejectsAnUncoordinatedChange() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "first", createdAt: 1, updatedAt: 1)])
+        try file.save(original)
+        let snapshot = try file.readSnapshot()
+        var external = original
+        external.snippets[0].content = "second"
+        try file.save(external)
+
+        #expect(throws: StorageError.dataChangedSinceRead) {
+            try file.save(original, ifUnchangedFrom: snapshot)
+        }
+        #expect(try file.read() == external)
+    }
+
+    @Test func sidecarLockSerializesConcurrentTransactions() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let firstEntered = DispatchSemaphore(value: 0)
+        let releaseFirst = DispatchSemaphore(value: 0)
+        let secondAttempting = DispatchSemaphore(value: 0)
+        let secondEntered = DispatchSemaphore(value: 0)
+        let firstFinished = DispatchSemaphore(value: 0)
+
+        DispatchQueue.global().async {
+            defer { firstFinished.signal() }
+            try? file.withExclusiveLock {
+                firstEntered.signal()
+                releaseFirst.wait()
+            }
+        }
+        #expect(firstEntered.wait(timeout: .now() + 5) == .success)
+        DispatchQueue.global().async {
+            secondAttempting.signal()
+            _ = try? file.withExclusiveLock { secondEntered.signal() }
+        }
+        #expect(secondAttempting.wait(timeout: .now() + 5) == .success)
+        #expect(secondEntered.wait(timeout: .now() + 0.1) == .timedOut)
+        releaseFirst.signal()
+        #expect(firstFinished.wait(timeout: .now() + 5) == .success)
+        #expect(secondEntered.wait(timeout: .now() + 5) == .success)
+    }
+
     @Test func readMissingFileDoesNotCreateItsDirectory() throws {
         #expect(try file.read() == .empty)
         #expect(!FileManager.default.fileExists(atPath: directory.path))
@@ -97,6 +139,17 @@ import Testing
         #expect(throws: StorageError.unsupportedStorageVersion(99)) { try file.read() }
         #expect(throws: StorageError.unsupportedStorageVersion(99)) { try file.load(now: 1) }
 
+        #expect(try Data(contentsOf: file.url) == original)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path) == ["data.json"])
+    }
+
+    @Test func invalidNumericVersionIsLeftUntouched() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let original = Data(#"{"version":8.5,"snippets":[]}"#.utf8)
+        try original.write(to: file.url)
+
+        #expect(throws: StorageError.invalidStorageVersion) { try file.load(now: 1) }
         #expect(try Data(contentsOf: file.url) == original)
         #expect(try FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path) == ["data.json"])
     }

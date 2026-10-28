@@ -1,5 +1,9 @@
 // swift-tools-version: 6.2
 import PackageDescription
+import Foundation
+
+let testingPluginPath = ProcessInfo.processInfo.environment["SWIFT_TESTING_PLUGIN_PATH"]
+    ?? "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing"
 
 let package = Package(
     name: "SloppyPaste",
@@ -25,7 +29,7 @@ let package = Package(
             swiftSettings: [
                 .unsafeFlags([
                     "-plugin-path",
-                    "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+                    testingPluginPath,
                 ])
             ]
         ),
@@ -35,7 +39,7 @@ let package = Package(
             swiftSettings: [
                 .unsafeFlags([
                     "-plugin-path",
-                    "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+                    testingPluginPath,
                 ])
             ]
         ),
@@ -48,7 +52,7 @@ let package = Package(
                 // miss, which fails with "plugin for module 'TestingMacros' not found".
                 .unsafeFlags([
                     "-plugin-path",
-                    "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing",
+                    testingPluginPath,
                 ])
             ]
         ),

@@ -89,7 +89,7 @@ import SloppyCore
             }
         }
         #expect(try Data(contentsOf: file.url) == future)
-        #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path) == ["data.json"])
+        #expect(try Set(FileManager.default.contentsOfDirectory(atPath: directory.path)) == ["data.json", "data.json.lock"])
         #expect(store.data == original)
     }
 
@@ -119,5 +119,86 @@ import SloppyCore
         }
         #expect(store.snippets[0].content == "Modified")
         #expect(try file.read().snippets[0].content == "Modified")
+    }
+
+    @Test func replaceImportRejectsChangesMadeAfterConfirmation() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "Original", createdAt: 1, updatedAt: 1)])
+        try file.save(original)
+        let store = SnippetStore(file: file, now: { 10 })
+        try store.requireCurrentData()
+        let confirmed = store.data
+
+        var external = original
+        external.snippets.append(Snippet(id: "b", title: "B", content: "External", createdAt: 2, updatedAt: 2))
+        try file.save(external)
+        let replacement = ImportPayload(snippets: [])
+
+        #expect(throws: (any Error).self) {
+            try store.importPayload(replacement, mode: .replace, expectedCurrent: confirmed)
+        }
+        #expect(store.lastError?.contains("changed while the import dialog") == true)
+        #expect(try file.read() == external)
+        #expect(!FileManager.default.fileExists(atPath: file.backupURL.path))
+
+        try store.importPayload(replacement, mode: .replace, expectedCurrent: external)
+        #expect(store.lastError == nil)
+        #expect(try file.read().snippets.isEmpty)
+        #expect(try Data(contentsOf: file.backupURL) == StorageCoding.encode(external))
+    }
+
+    @Test func partialExternalWritePreservesLoadedDataAndBlocksEdits() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "Keep", createdAt: 1, updatedAt: 1)])
+        try file.save(original)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+
+        try Data("{unfinished".utf8).write(to: file.url)
+        #expect(throws: (any Error).self) { try store.requireCurrentData() }
+        #expect(store.data == original)
+        #expect(store.quarantinedURL == nil)
+        #expect(try String(contentsOf: file.url, encoding: .utf8) == "{unfinished")
+        #expect(throws: (any Error).self) { try store.recordUse(id: "a") }
+
+        try file.save(original)
+        try store.recordUse(id: "a")
+        #expect(store.snippets[0].useCount == 1)
+    }
+
+    @Test func disappearedExternalFileDoesNotBecomeAnEmptyStore() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "Keep", createdAt: 1, updatedAt: 1)])
+        try file.save(original)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+
+        try FileManager.default.removeItem(at: file.url)
+        #expect(throws: (any Error).self) { try store.recordUse(id: "a") }
+        #expect(store.data == original)
+        #expect(!FileManager.default.fileExists(atPath: file.url.path))
+    }
+
+    @Test func uncoordinatedWriteDuringMutationIsNotOverwritten() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = StorageFile(url: directory.appending(path: "data.json"))
+        let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "Keep", createdAt: 1, updatedAt: 1)])
+        var external = original
+        external.snippets[0].content = "External"
+        try file.save(original)
+        let store = SnippetStore(file: file, now: { 10 })
+        store.load()
+
+        #expect(throws: StorageError.dataChangedSinceRead) {
+            try store.mutate { repository, now in
+                try file.save(external)
+                try repository.recordUse(id: "a", now: now)
+            }
+        }
+        #expect(try file.read() == external)
+        #expect(store.lastError != nil)
     }
 }

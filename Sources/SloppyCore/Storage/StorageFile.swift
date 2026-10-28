@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// The JSON data file: atomic pretty-printed writes, a `.bak` copy before a
 /// replace-import, and quarantine instead of overwrite when it fails to decode.
@@ -17,6 +18,29 @@ public struct StorageFile: Sendable, Hashable {
     }
 
     public var backupURL: URL { url.appendingPathExtension("bak") }
+    public var lockURL: URL { url.appendingPathExtension("lock") }
+
+    /// Bytes and decoded data from the same read. Keep the bytes until a write
+    /// so an editor that does not use our lock cannot be silently overwritten.
+    public struct Snapshot: Sendable, Hashable {
+        public let data: StorageData
+        public let bytes: Data?
+    }
+
+    /// A sidecar lock survives atomic replacement of data.json. Every app and
+    /// CLI read-modify-write operation holds it from read through save.
+    public func withExclusiveLock<T>(_ body: () throws -> T) throws -> T {
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let descriptor = open(lockURL.path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
+        guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        defer { close(descriptor) }
+        guard flock(descriptor, LOCK_EX) == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        defer { flock(descriptor, LOCK_UN) }
+        return try body()
+    }
 
     public struct LoadResult: Sendable, Hashable {
         public var data: StorageData
@@ -29,13 +53,18 @@ public struct StorageFile: Sendable, Hashable {
     /// Reads and migrates in memory without writing, creating, or quarantining files.
     /// Missing files give empty data; malformed files throw and remain untouched.
     public func read() throws -> StorageData {
+        try readSnapshot().data
+    }
+
+    /// Reads and migrates in memory, preserving malformed files for repair.
+    public func readSnapshot() throws -> Snapshot {
         let contents: Data
         do {
             contents = try Data(contentsOf: url)
         } catch CocoaError.fileReadNoSuchFile {
-            return .empty
+            return Snapshot(data: .empty, bytes: nil)
         }
-        return try StorageMigrations.migrate(json: contents).data
+        return Snapshot(data: try StorageMigrations.migrate(json: contents).data, bytes: contents)
     }
 
     /// Loads and migrates the file, saving it back if it migrated. A missing
@@ -89,6 +118,23 @@ public struct StorageFile: Sendable, Hashable {
         try StorageCoding.encode(data).write(to: url, options: .atomic)
     }
 
+    /// Fails when another writer changed the file since the data was read.
+    /// Cooperative writers also hold `withExclusiveLock` around the operation.
+    public func save(_ data: StorageData, ifUnchangedFrom snapshot: Snapshot) throws {
+        try verifyUnchanged(snapshot)
+        try save(data)
+    }
+
+    private func verifyUnchanged(_ snapshot: Snapshot) throws {
+        let current: Data?
+        do {
+            current = try Data(contentsOf: url)
+        } catch CocoaError.fileReadNoSuchFile {
+            current = nil
+        }
+        guard current == snapshot.bytes else { throw StorageError.dataChangedSinceRead }
+    }
+
     /// Copies the current file to `backupURL`, replacing an older backup.
     /// Returns nil when there is no file to back up.
     @discardableResult
@@ -99,11 +145,16 @@ public struct StorageFile: Sendable, Hashable {
     }
 
     /// Applies an import and saves it. A replace-import backs up the file first.
-    public func importPayload(_ payload: ImportPayload, into current: StorageData, mode: ImportMode) throws -> StorageData {
+    public func importPayload(
+        _ payload: ImportPayload, into current: StorageData, mode: ImportMode,
+        ifUnchangedFrom snapshot: Snapshot? = nil
+    ) throws -> StorageData {
+        if let snapshot { try verifyUnchanged(snapshot) }
         if mode == .replace {
             try writeBackup()
         }
         let next = ImportExport.apply(payload, to: current, mode: mode)
+        if let snapshot { try verifyUnchanged(snapshot) }
         try save(next)
         return next
     }

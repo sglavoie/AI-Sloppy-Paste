@@ -170,6 +170,27 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
         #expect(process("{{#if a}}{{#if b}}unclosed{{/if}}", ["a": "1", "b": "1"]) == "{{#if a}}unclosed")
     }
 
+    @Test func unfinishedOuterElsePreservesResolvedChildren() {
+        let text = "Before{{#if outer}}Yes{{#else}}No {{#if inner}}child{{/if}}{{/else}}"
+        #expect(process(text, ["inner": "true"]) == "Before{{#if outer}}Yes{{#else}}No child{{/else}}")
+        #expect(process("Before{{#else}}outside{{/if}}", [:]) == "Before{{#else}}outside{{/if}}")
+    }
+
+    @Test func largeNestedTemplateRendersInTheForm() {
+        // Below the editor's content limit, but repeated whole-document
+        // scans previously took many seconds and blocked the UI thread.
+        let depth = 4_000
+        let content = String(repeating: "{{#if +a}}", count: depth)
+            + "{{name}}" + String(repeating: "{{/if}}", count: depth)
+        #expect(content.count < ValidationLimits.contentMaxLength)
+        var form = PlaceholderFormModel(snippetContent: content,
+            placeholders: extract(content), history: [:], now: 0)
+        form.setCustomValue("name", "Ada")
+        #expect(form.previewContent == "Ada")
+        form.setEnabled("a", false)
+        #expect(form.previewContent.isEmpty)
+    }
+
     @Test(arguments: [11, 32])
     func deeplyNestedBlocksResolveCompletely(depth: Int) {
         let text = String(repeating: "{{#if a}}", count: depth) + "x" + String(repeating: "{{/if}}", count: depth)
@@ -284,6 +305,27 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 /// under Node 24, covering wrappers with empty values, emoji, CJK and CRLF.
 /// CRLF cleanup intentionally fixes the legacy renderer's split line endings.
 @Suite struct RenderPipelineGoldenTests {
+    @Test(arguments: [
+        "{{#if +show}}Visible{{#else}}Hidden{{/if}}",
+        "{{tone[Formal|Casual]}}",
+        "{{#if tone}}{{tone[Formal|Casual]}}{{#else}}Missing{{/if}}",
+        "{{(:tone[Formal|Casual]:)}}",
+        "{{(:tone[Formal|Casual]:)|Casual}}",
+    ])
+    func omittedValuesMatchInitialFormState(content: String) {
+        let form = PlaceholderFormModel(
+            snippetContent: content,
+            placeholders: extract(content), history: [:], now: 0)
+        #expect(PlaceholderRenderer.render(content, values: [:], now: 0) == form.previewContent)
+    }
+
+    @Test func explicitValuesOverrideGuardAndChoiceDefaults() {
+        let content = "{{#if +show}}{{tone[Formal|Casual]}}{{#else}}Hidden{{/if}}"
+        #expect(PlaceholderRenderer.render(content, values: ["show": ""], now: 0) == "Hidden")
+        #expect(PlaceholderRenderer.render(content, values: ["tone": ""], now: 0) == "")
+        #expect(PlaceholderRenderer.render(content, values: ["tone": "Custom"], now: 0) == "Custom")
+    }
+
     @Test(arguments: ["{{name|Ada}}", "{{name[Ada|Bob]|Ada}}", "{{(:name:)|Ada}}"])
     func defaultsAlsoDetermineConditionalBranches(declaration: String) {
         let text = "{{#if name}}Hello \(declaration){{#else}}Anonymous{{/if}}"

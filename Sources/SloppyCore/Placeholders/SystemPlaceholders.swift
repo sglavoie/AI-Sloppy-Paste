@@ -36,9 +36,29 @@ public enum SystemPlaceholders {
     /// names are left alone.
     public static func process(_ text: String, now: Int64, timeZone: TimeZone = .current) -> String {
         let regex = /\{\{\s*(DATETIME|DATE|TIME|TODAY|NOW|YEAR|MONTH|DAY)\s*\}\}/.matchingSemantics(.unicodeScalar)
-        return text.replacing(regex) { match in
-            value(for: String(match.output.1), now: now, timeZone: timeZone) ?? String(match.output.0)
+        // Conditional labels can contain literal template examples. The shared
+        // scanner consumes the entire opener, including braces inside quotes.
+        let conditionalOpeners = PlaceholderSyntaxParser.scanExpressions(text)
+            .filter { $0.content.trimmed.contains(/^#if\s/.matchingSemantics(.unicodeScalar)) }
+            .map(\.indices)
+        var openerIndex = 0
+        var result = ""
+        var cursor = text.startIndex
+        for match in text.matches(of: regex) {
+            result += text[cursor..<match.range.lowerBound]
+            while openerIndex < conditionalOpeners.count,
+                conditionalOpeners[openerIndex].upperBound <= match.range.lowerBound {
+                openerIndex += 1
+            }
+            let insideOpener = openerIndex < conditionalOpeners.count
+                && conditionalOpeners[openerIndex].lowerBound <= match.range.lowerBound
+                && match.range.upperBound <= conditionalOpeners[openerIndex].upperBound
+            result += insideOpener
+                ? String(match.output.0)
+                : value(for: String(match.output.1), now: now, timeZone: timeZone) ?? String(match.output.0)
+            cursor = match.range.upperBound
         }
+        return result + text[cursor...]
     }
 
     private static func format(_ date: Date, _ pattern: String, _ timeZone: TimeZone) -> String {

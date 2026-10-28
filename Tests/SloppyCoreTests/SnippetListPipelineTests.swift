@@ -192,6 +192,17 @@ import Testing
 
 /// Ports the useSearchSuggestions branches (no TS test file exists).
 @Suite struct SearchSuggestionsTests {
+    @Test(arguments: ["tag:", "not:tag:"])
+    func partialCombiningValueCompletesWithoutLosingScalars(operation: String) throws {
+        let tag = "\u{301}work"
+        let item = try #require(SearchSuggestions.suggestions(
+            for: operation + "\u{301}wo", allTags: [tag]).first)
+        #expect(item.completion == operation + tag + " ")
+        let parsed = QueryParser.parse(item.completion)
+        #expect(operation == "tag:" ? parsed.tags == [tag] : parsed.notTags == [tag])
+        #expect(SearchSuggestions.suggestions(for: item.completion, allTags: [tag]).isEmpty)
+    }
+
     @Test(arguments: ["two words", #"say "hello""#, #"5" monitor"#, #"work\projects"#])
     func importedTagSuggestionsRoundTrip(tag: String) throws {
         let item = try #require(SearchSuggestions.suggestions(for: "tag:", allTags: [tag]).first)

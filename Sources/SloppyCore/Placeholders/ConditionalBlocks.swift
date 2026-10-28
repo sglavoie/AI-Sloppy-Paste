@@ -27,25 +27,59 @@ public enum ConditionalBlocks {
         // An unfinished block cannot render. Avoid repeatedly searching for
         // a closer that is absent while the user is still authoring it.
         guard text.contains(/\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)) else { return text }
-        // Consume quoted labels as a unit: their braces cannot end the opener.
-        // Bodies exclude nested if tags, so only leaf blocks match.
-        let leaf = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{#else\}\}((?:(?!\{\{#if\s)[\s\S])*?)(?:\{\{\/else\}\}\s*)?)?\{\{\/if\}\}/
-            .matchingSemantics(.unicodeScalar)
-
-        var result = text
-        // Every successful pass removes control tags and shortens the text,
-        // so resolution terminates without imposing a nesting limit.
-        while true {
-            var foundLeaf = false
-            result = result.replacing(leaf) { match in
-                foundLeaf = true
-                let value = values[conditionKey(String(match.output.1))] ?? ""
-                let body = value.trimmed.isEmpty ? match.output.3.map(String.init) ?? "" : String(match.output.2)
-                return stripOuterNewlines(body)
+        let open = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}/.matchingSemantics(.unicodeScalar)
+        // Resolve blocks as their closing tags arrive, without rescanning the
+        // entire document for every nesting level. The shared scanner also
+        // keeps template examples inside quoted labels together.
+        var stack = [RenderingBlock(opener: "", key: "")]
+        var cursor = text.startIndex
+        for expression in PlaceholderSyntaxParser.scanExpressions(text) {
+            stack[stack.count - 1].append(text[cursor..<expression.indices.lowerBound])
+            cursor = expression.indices.upperBound
+            if let match = expression.raw.wholeMatch(of: open) {
+                stack.append(RenderingBlock(opener: expression.raw, key: conditionKey(String(match.output.1))))
+            } else if expression.raw == "{{#else}}", stack.count > 1, stack.last?.elseBody == nil {
+                stack[stack.count - 1].elseBody = ""
+            } else if expression.raw == "{{/if}}", stack.count > 1 {
+                let block = stack.removeLast()
+                let body: String
+                if (values[block.key] ?? "").trimmed.isEmpty {
+                    body = (block.elseBody ?? "")
+                        .replacing(/\{\{\/else\}\}\s*$/.matchingSemantics(.unicodeScalar), with: "")
+                } else {
+                    body = block.ifBody
+                }
+                stack[stack.count - 1].append(stripOuterNewlines(body))
+            } else {
+                stack[stack.count - 1].append(expression.raw)
             }
-            if !foundLeaf { break }
         }
-        return result
+        stack[stack.count - 1].append(text[cursor...])
+        // Preserve unfinished outer blocks while retaining any complete
+        // nested blocks already resolved, as in the editor's live preview.
+        while stack.count > 1 {
+            let block = stack.removeLast()
+            stack[stack.count - 1].append(block.opener + block.ifBody)
+            if let elseBody = block.elseBody {
+                stack[stack.count - 1].append("{{#else}}" + elseBody)
+            }
+        }
+        return stack[0].ifBody
+    }
+
+    private struct RenderingBlock {
+        var opener: String
+        var key: String
+        var ifBody = ""
+        var elseBody: String?
+
+        mutating func append(_ text: some StringProtocol) {
+            if elseBody != nil {
+                elseBody!.append(contentsOf: text)
+            } else {
+                ifBody.append(contentsOf: text)
+            }
+        }
     }
 
     /// The top-level bodies of every block guarded by `key`, in document

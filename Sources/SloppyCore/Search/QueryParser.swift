@@ -121,7 +121,11 @@ public enum QueryParser {
 
     /// The non-empty rest of `token` after `prefix`, or nil.
     private static func value(of token: Substring, after prefix: String) -> String? {
-        guard token.hasPrefix(prefix), token.count > prefix.count else { return nil }
-        return String(token.dropFirst(prefix.count))
+        // A leading combining mark can share a Character with the colon.
+        // Operators delimit Unicode scalars, not grapheme clusters.
+        let scalars = token.unicodeScalars
+        let prefixScalars = prefix.unicodeScalars
+        guard scalars.starts(with: prefixScalars), scalars.count > prefixScalars.count else { return nil }
+        return String(scalars.dropFirst(prefixScalars.count))
     }
 }

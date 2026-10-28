@@ -58,6 +58,14 @@ import Testing
         #expect(archived.sections[0].title == "⊟ Archived (1)")
     }
 
+    @Test func archivedSearchKeepsRecentArchivedSnippetsInMainSection() {
+        let snippets = Self.library + [Self.snippet("x", lastUsedAt: Self.now, isArchived: true)]
+        let state = PickerListModel.build(snippets, query: "is:archived", now: Self.now)
+
+        #expect(state.sections.map(\.kind) == [.main])
+        #expect(state.rows.map(\.id) == ["x"])
+    }
+
     @Test func typingFilters() {
         let state = PickerListModel.build(Self.library, query: "plan", now: Self.now)
         #expect(state.rows.map(\.id) == ["a"])

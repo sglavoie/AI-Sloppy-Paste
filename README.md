@@ -240,14 +240,19 @@ It uses the same `StorageData` JSON shape as the Raycast extension's export.
 - Writes are atomic and pretty-printed.
 - A replace-import first copies the current file to `data.json.bak`.
 - Editing the file by hand is fine: the app reloads it when it changes.
-- If a reload fails, changes and imports are blocked until the file can be
-  read again. Fix the file access problem and retry; editor drafts stay intact.
+- If a reload fails, the last good data stays visible and changes and imports
+  are blocked until the file can be read again. A partial external edit is left
+  in place for its writer to finish; fix the file and retry. Editor drafts stay
+  intact.
+- App and `sloppyctl` writes use `data.json.lock` to serialize edits across
+  processes. Changes made by an external editor that does not use this lock
+  are detected before saving, and the app reports a conflict.
 - A data file with a newer storage version is left untouched and blocks changes
   and imports. Imports from newer export versions are also rejected before
   changing existing data. Update Sloppy Paste to a version that supports it.
-- A file that fails to decode is never overwritten. It is moved aside as
-  `data.corrupt-<timestamp>.json`, the app starts empty, and an alert explains
-  how to restore it.
+- On startup, a file that fails to decode is never overwritten. It is moved
+  aside as `data.corrupt-<timestamp>.json`, the app starts empty, and an alert
+  explains how to restore it. Later reloads leave malformed files in place.
 
 Settings → Data shows the path, with a Reveal button, and the storage size.
 
@@ -325,17 +330,23 @@ the store's migration, backup, and quarantine behavior.
 - **Accessibility is granted but ignored after a rebuild.** Compare
   `just show-dr` with an earlier build. Then run the `tccutil reset` command
   above and grant the permission again.
-- **`swift test` can't find `TestingMacros`.** `Package.swift` already passes
-  the Command Line Tools plugin path. Make sure
-  `xcode-select -p` points at `/Library/Developer/CommandLineTools`.
+- **`swift test` can't find `TestingMacros`.** `Package.swift` defaults to the
+  Command Line Tools plugin path. If Xcode and Command Line Tools have
+  different Swift versions, set `SWIFT_TESTING_PLUGIN_PATH` to the active
+  toolchain's `usr/lib/swift/host/plugins/testing` directory.
 
-## Live verification (pending)
+## Live verification (incomplete)
 
-The live verification matrix hasn't been run on the signed, installed app yet.
-It's waived for now as a manual follow-up. After running it, record the results
-in `Docs/live-verification.json` with `tested_build`, `tested_at`, `tester`,
-`overall: "pass"`, and one `cases.<key>` entry per check, each with
-`status: "pass"` and a concrete `observed` result. Keys:
+Partial results and the procedure for each check are recorded in
+[`Docs/live-verification.json`](Docs/live-verification.json). The signed rebuild
+and reinstall retained Accessibility access. The remaining UI checks need an
+idle desktop, and the display checks need a second display. Automated tests
+do not count as live verification.
+
+Update the report with `tested_build`, `tested_at`, `tester`, and one
+`cases.<key>` entry per check, each with its actual `status` and a concrete
+`observed` result. Keep `overall: "incomplete"` while any checks are pending or
+blocked; use `overall: "pass"` only after every check passes. Keys:
 
 - Paste targets: `textedit`, `notes`, `vscode`, `terminal-iterm`,
   `browser-field`, `slack`, `full-screen`, `second-display`, `another-space`.

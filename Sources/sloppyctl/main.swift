@@ -191,8 +191,14 @@ func run(_ arguments: [String]) throws {
         guard options.positional.count == 1 else { throw CommandError(description: "import needs one export file") }
         let exportURL = URL(filePath: (options.positional[0] as NSString).expandingTildeInPath)
         let payload = try ImportExport.decodeImport(Data(contentsOf: exportURL))
-        let current = try load(file)
-        let next = try file.importPayload(payload, into: current, mode: options.mode)
+        let (current, next) = try file.withExclusiveLock {
+            let current = try load(file)
+            let snapshot = try file.readSnapshot()
+            guard current == snapshot.data else { throw StorageError.dataChangedSinceRead }
+            let next = try file.importPayload(
+                payload, into: current, mode: options.mode, ifUnchangedFrom: snapshot)
+            return (current, next)
+        }
         let added = next.snippets.count - (options.mode == .merge ? current.snippets.count : 0)
         if !options.json {
             print("Imported \(payload.snippets.count) snippets (\(options.mode.rawValue), \(added) added) into \(file.url.path)")
@@ -232,6 +238,7 @@ func run(_ arguments: [String]) throws {
 do {
     try run(CommandLine.arguments)
 } catch {
-    FileHandle.standardError.write(Data("error: \(error)\n".utf8))
+    let message = (error as? any LocalizedError)?.errorDescription ?? String(describing: error)
+    FileHandle.standardError.write(Data("error: \(message)\n".utf8))
     exit(1)
 }

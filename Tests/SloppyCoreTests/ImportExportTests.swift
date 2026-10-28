@@ -161,6 +161,12 @@ import Testing
         }
     }
 
+    @Test(arguments: ["8.5", #""8x.0""#, #""unknown""#, "-1"])
+    func importRejectsMalformedVersions(version: String) {
+        let json = Data(#"{"version":\#(version),"snippets":[]}"#.utf8)
+        #expect(throws: StorageError.invalidStorageVersion) { try ImportExport.decodeImport(json) }
+    }
+
     @Test(arguments: ["null", "1", #""1.0.0""#, "7", #""7.0.0""#])
     func supportedImportVersionsPreserveHistory(version: String) throws {
         let history = #"{"name":[{"value":"Ada","useCount":1,"lastUsed":2,"createdAt":1}]}"#

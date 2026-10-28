@@ -17,10 +17,10 @@ final class SnippetStore {
     @ObservationIgnored var now: () -> Int64
     @ObservationIgnored private var loadedModificationDate: Date?
     @ObservationIgnored private var hasLoaded = false
+    @ObservationIgnored private var hasLoadedFile = false
     @ObservationIgnored private var loadFailure: String?
     @ObservationIgnored private var watcher: FileWatcher?
-    /// Called when a load (at launch or after an external edit) moved an
-    /// undecodable file aside.
+    /// Called when the startup load moved an undecodable file aside.
     @ObservationIgnored var onQuarantine: ((URL) -> Void)?
 
     init(file: StorageFile = StorageFile(), now: @escaping () -> Int64 = { Date().epochMilliseconds }) {
@@ -33,7 +33,10 @@ final class SnippetStore {
     /// Loads the file from disk, migrating and quarantining as needed.
     func load() {
         do {
-            let result = try file.load(now: now())
+            let (result, filePresent) = try file.withExclusiveLock {
+                let result = try file.load(now: now())
+                return (result, FileManager.default.fileExists(atPath: file.url.path))
+            }
             data = result.data
             if let quarantined = result.quarantinedURL {
                 quarantinedURL = quarantined
@@ -42,6 +45,7 @@ final class SnippetStore {
             lastError = nil
             loadFailure = nil
             hasLoaded = true
+            hasLoadedFile = filePresent
             loadedModificationDate = currentModificationDate()
         } catch {
             loadFailure = error.localizedDescription
@@ -56,23 +60,35 @@ final class SnippetStore {
         watcher = FileWatcher(url: file.url) { [weak self] in
             // A write notification is sufficient evidence of a change even
             // when an editor or sync tool preserves the modification date.
-            self?.load()
+            try? self?.requireCurrentData()
         }
     }
 
     /// Reloads when the file changed on disk since the last load or save.
     func reloadIfChanged() {
         guard !hasLoaded || loadFailure != nil || currentModificationDate() != loadedModificationDate else { return }
-        load()
+        try? requireCurrentData()
     }
 
     /// Always reads before deriving data that will be written back to disk.
     /// Modification dates can be preserved by external writers, so they are
     /// only a UI refresh optimization, not a safe check before a mutation.
-    func requireCurrentData() throws {
-        load()
-        if let loadFailure {
-            throw ReloadFailure(reason: loadFailure)
+    @discardableResult
+    func requireCurrentData() throws -> StorageFile.Snapshot {
+        do {
+            let snapshot = try file.readSnapshot()
+            if hasLoadedFile && snapshot.bytes == nil { throw StorageError.dataFileDisappeared }
+            data = snapshot.data
+            lastError = nil
+            loadFailure = nil
+            hasLoaded = true
+            hasLoadedFile = snapshot.bytes != nil
+            loadedModificationDate = currentModificationDate()
+            return snapshot
+        } catch {
+            loadFailure = error.localizedDescription
+            lastError = error.localizedDescription
+            throw ReloadFailure(reason: error.localizedDescription)
         }
     }
 
@@ -87,11 +103,13 @@ final class SnippetStore {
     /// Reloads first, then applies a repository mutation and saves the result.
     @discardableResult
     func mutate<T>(_ body: (inout SnippetRepository, Int64) throws -> T) throws -> T {
-        try requireCurrentData()
-        var repository = SnippetRepository(data: data)
-        let result = try body(&repository, now())
-        try save(repository.data)
-        return result
+        try file.withExclusiveLock {
+            let snapshot = try requireCurrentData()
+            var repository = SnippetRepository(data: snapshot.data)
+            let result = try body(&repository, now())
+            try save(repository.data, ifUnchangedFrom: snapshot)
+            return result
+        }
     }
 
     /// Bumps useCount and lastUsedAt, and saves the placeholder values to history.
@@ -102,11 +120,12 @@ final class SnippetStore {
     }
 
     /// Replaces the data wholesale (imports) and saves it.
-    private func save(_ next: StorageData) throws {
+    private func save(_ next: StorageData, ifUnchangedFrom snapshot: StorageFile.Snapshot) throws {
         do {
-            try file.save(next)
+            try file.save(next, ifUnchangedFrom: snapshot)
             data = next
             lastError = nil
+            hasLoadedFile = true
             loadedModificationDate = currentModificationDate()
         } catch {
             lastError = error.localizedDescription
@@ -117,19 +136,22 @@ final class SnippetStore {
     /// Imports into the current data (reloaded first); a replace backs the
     /// file up to `data.json.bak` before writing.
     func importPayload(_ payload: ImportPayload, mode: ImportMode, expectedCurrent: StorageData? = nil) throws {
-        try requireCurrentData()
-        if let expectedCurrent, data != expectedCurrent {
-            let error = ImportConflict()
-            lastError = error.localizedDescription
-            throw error
-        }
-        do {
-            data = try file.importPayload(payload, into: data, mode: mode)
-            lastError = nil
-            loadedModificationDate = currentModificationDate()
-        } catch {
-            lastError = error.localizedDescription
-            throw error
+        try file.withExclusiveLock {
+            let snapshot = try requireCurrentData()
+            if let expectedCurrent, data != expectedCurrent {
+                let error = ImportConflict()
+                lastError = error.localizedDescription
+                throw error
+            }
+            do {
+                data = try file.importPayload(payload, into: snapshot.data, mode: mode, ifUnchangedFrom: snapshot)
+                lastError = nil
+                hasLoadedFile = true
+                loadedModificationDate = currentModificationDate()
+            } catch {
+                lastError = error.localizedDescription
+                throw error
+            }
         }
     }
 

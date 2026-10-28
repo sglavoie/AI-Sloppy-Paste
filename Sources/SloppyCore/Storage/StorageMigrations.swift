@@ -86,6 +86,7 @@ public enum StorageMigrations {
     private typealias Migration = @Sendable (inout LegacyStorageData, inout Bool) -> Void
 
     static func requireSupportedVersion(_ version: Int?) throws {
+        if let version, version < 0 { throw StorageError.invalidStorageVersion }
         if let version, version > StorageConstants.currentVersion {
             throw StorageError.unsupportedStorageVersion(version)
         }
@@ -97,11 +98,17 @@ public enum StorageMigrations {
     static func requireSupportedVersion<Key: CodingKey>(
         in container: KeyedDecodingContainer<Key>, forKey key: Key
     ) throws {
+        guard container.contains(key), try !container.decodeNil(forKey: key) else { return }
         if let version = try? container.decode(Int.self, forKey: key) {
             try requireSupportedVersion(version)
         } else if let version = try? container.decode(String.self, forKey: key) {
-            let major = version.split(separator: ".", omittingEmptySubsequences: false).first.flatMap { Int($0) }
+            let components = version.split(separator: ".", omittingEmptySubsequences: false)
+            guard components.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy { $0 >= 48 && $0 <= 57 } }),
+                let major = components.first.flatMap({ Int($0) })
+            else { throw StorageError.invalidStorageVersion }
             try requireSupportedVersion(major)
+        } else {
+            throw StorageError.invalidStorageVersion
         }
     }
 

@@ -116,7 +116,7 @@ public struct SnippetRepository: Sendable, Hashable {
 
         var recorded = Set<[String]>()
         for item in placeholderValues where item.isSaved {
-            guard !item.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            guard !item.value.trimmed.isEmpty,
                 recorded.insert([item.key, item.value]).inserted
             else { continue }
             data.addPlaceholderValue(key: item.key, value: item.value, now: now)

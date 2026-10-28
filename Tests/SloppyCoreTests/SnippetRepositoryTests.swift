@@ -34,6 +34,23 @@ import Testing
         #expect(repo.data.placeholderHistory(forKey: "not-saved").isEmpty)
     }
 
+    @Test(arguments: ["\u{FEFF}", " \u{FEFF}\n"])
+    func historyRejectsValuesThatRenderAsBlank(blank: String) throws {
+        var repo = SnippetRepository()
+        let snippet = repo.addSnippet(title: "Test", content: "{{name}}", now: 1)
+        try repo.recordUse(id: snippet.id, placeholderValues: [.init(key: "name", value: blank)], now: now)
+        #expect(repo.data.placeholderHistory.isEmpty)
+        let added = repo.data.addPlaceholderValue(key: "name", value: blank, now: now)
+        #expect(!added)
+
+        let valid = "\u{FEFF}Ada\u{FEFF}"
+        repo.data.addPlaceholderValue(key: "name", value: valid, now: now)
+        #expect(throws: StorageError.emptyPlaceholderValue) {
+            try repo.data.updatePlaceholderValue(key: "name", oldValue: valid, newValue: blank)
+        }
+        #expect(repo.data.placeholderHistory(forKey: "name").map(\.value) == [valid])
+    }
+
     @Test func deduplicatesRepeatedPairsWithinOneUse() throws {
         var repo = SnippetRepository()
         let snippet = repo.addSnippet(title: "Test", content: "Content", now: 1)

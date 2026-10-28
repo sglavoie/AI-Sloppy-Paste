@@ -84,6 +84,10 @@ or `not:tag:"old projects"`. Search suggestions add these quotes automatically.
 placeholders open the usual form first; submitting it returns to the list.
 This is also available as **Copy and Keep Open** in the ⌘K action menu.
 
+Use `{{!name}}` to keep a placeholder value out of history. When a key appears
+more than once, a `!` on any occurrence prevents saving that key's value,
+including when another occurrence declares its choices.
+
 ⌘+ (or ⌘=) and ⌘- zoom the picker in and out, and ⌘0 resets it. The whole panel
 grows or shrinks with its contents, and the zoom level is remembered.
 

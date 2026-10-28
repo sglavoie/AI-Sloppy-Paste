@@ -104,7 +104,7 @@ import Testing
         #expect(MissingPlaceholderHistoryError(placeholderKey: "b").description == "No history for {{b}}")
     }
 
-    @Test(arguments: ["", " \t\n"])
+    @Test(arguments: ["", " \t\n", "\u{FEFF}", " \u{FEFF}\n"])
     func blankHistoryCannotSatisfyRequiredFields(blank: String) {
         let s = snippet("Hello {{name}}")
         let values = history(["name": blank])
@@ -114,11 +114,36 @@ import Testing
         }
     }
 
+    @Test(arguments: [
+        "{{token}} {{!token}}",
+        "{{!token}} {{token}}",
+        "{{!token}} {{token[one|two]}}",
+        "{{token[one|two]}} {{!token}}",
+        "{{token}} {{!token[one|two]}}",
+        "{{!token[one|two]}} {{token}}",
+    ])
+    func repeatedNoSavePlaceholderNeverEntersHistory(content: String) throws {
+        let s = snippet(content)
+        let placeholders = PlaceholderSyntaxParser.extractPlaceholders(content)
+        var form = PlaceholderFormModel(snippetContent: content, placeholders: placeholders,
+            history: [:], now: Self.now)
+        form.setCustomValue("token", "secret")
+        let submission = form.prepareSubmission()
+        let prepared = try #require(submission)
+        #expect(prepared.content == "secret secret")
+        #expect(prepared.placeholderValues == [.init(key: "token", value: "secret", isSaved: false)])
+
+        var repository = SnippetRepository(data: StorageData(snippets: [s]))
+        try repository.recordUse(id: s.id, placeholderValues: prepared.placeholderValues, now: Self.now)
+        #expect(repository.data.placeholderHistory.isEmpty)
+        #expect(repository.snippets.first?.useCount == 1)
+    }
+
     @Test func lastValuesSkipsBlankImportedHistoryWithoutTrimmingValidText() throws {
         let s = snippet("Hello {{name}}")
         let values: PlaceholderHistory = ["name": [
             .init(value: " Ada ", useCount: 1, lastUsed: 1, createdAt: 1),
-            .init(value: " \n", useCount: 1, lastUsed: 2, createdAt: 2),
+            .init(value: " \u{FEFF}\n", useCount: 1, lastUsed: 2, createdAt: 2),
         ]]
         #expect(SnippetPreparation.lastValuesAvailability(for: s, history: values, now: Self.now) == .available)
         let prepared = try SnippetPreparation.prepareWithLastValues(s, history: values, now: Self.now)

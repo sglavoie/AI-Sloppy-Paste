@@ -10,12 +10,16 @@ public enum PlaceholderAggregator {
         for occurrence in occurrences {
             let placeholder = placeholder(from: occurrence)
             if let existingIndex = indexByKey[occurrence.key] {
+                // A no-save marker applies to the shared value, regardless of
+                // reference order or which occurrence declares its choices.
+                let isSaved = placeholders[existingIndex].isSaved && placeholder.isSaved
                 if occurrence.isChoiceDeclaration && placeholders[existingIndex].choices == nil {
                     // A declaration owns field-level metadata even if a plain
                     // reference was authored first. Keep the field's original
                     // ordering in the form.
                     placeholders[existingIndex] = placeholder
                 }
+                placeholders[existingIndex].isSaved = isSaved
             } else {
                 indexByKey[occurrence.key] = placeholders.count
                 placeholders.append(placeholder)

@@ -15,7 +15,7 @@ extension StorageData {
     /// Returns false (and changes nothing) for an empty key or blank value.
     @discardableResult
     public mutating func addPlaceholderValue(key: String, value: String, now: Int64) -> Bool {
-        guard !key.isEmpty, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        guard !key.isEmpty, !value.trimmed.isEmpty else { return false }
 
         var values = placeholderHistory[key] ?? []
         if let index = values.firstIndex(where: { $0.value == value }) {
@@ -54,7 +54,7 @@ extension StorageData {
 
     /// Renames a stored value in place.
     public mutating func updatePlaceholderValue(key: String, oldValue: String, newValue: String) throws {
-        guard !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard !newValue.trimmed.isEmpty else {
             throw StorageError.emptyPlaceholderValue
         }
         guard let values = placeholderHistory[key] else { throw StorageError.placeholderKeyNotFound }

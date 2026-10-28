@@ -53,7 +53,7 @@ public enum PlaceholderHistoryRanking {
     /// satisfy required fields. Preserve valid values exactly as stored.
     public static func lastUsedValue(_ values: [PlaceholderHistoryValue]) -> String? {
         values.reduce(nil as PlaceholderHistoryValue?) { latest, current in
-            guard !current.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return latest }
+            guard !current.value.trimmed.isEmpty else { return latest }
             guard let latest, current.lastUsed <= latest.lastUsed else { return current }
             return latest
         }?.value

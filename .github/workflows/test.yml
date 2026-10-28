@@ -11,6 +11,8 @@ jobs:
   swift-test:
     runs-on: macos-26
     timeout-minutes: 20
+    env:
+      SWIFT_TESTING_PLUGIN_PATH: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing
     steps:
       - uses: actions/checkout@v6
       - name: Show Swift toolchain

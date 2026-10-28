@@ -330,9 +330,10 @@ the store's migration, backup, and quarantine behavior.
 - **Accessibility is granted but ignored after a rebuild.** Compare
   `just show-dr` with an earlier build. Then run the `tccutil reset` command
   above and grant the permission again.
-- **`swift test` can't find `TestingMacros`.** `Package.swift` already passes
-  the Command Line Tools plugin path. Make sure
-  `xcode-select -p` points at `/Library/Developer/CommandLineTools`.
+- **`swift test` can't find `TestingMacros`.** `Package.swift` defaults to the
+  Command Line Tools plugin path. If Xcode and Command Line Tools have
+  different Swift versions, set `SWIFT_TESTING_PLUGIN_PATH` to the active
+  toolchain's `usr/lib/swift/host/plugins/testing` directory.
 
 ## Live verification (incomplete)
 

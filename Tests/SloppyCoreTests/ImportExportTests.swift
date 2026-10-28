@@ -153,6 +153,24 @@ import Testing
         #expect(throws: (any Error).self) { try ImportExport.decodeImport(Data(#"{"version": 7}"#.utf8)) }
     }
 
+    @Test(arguments: ["7", #""7.0.0""#], [
+        #""tags":"work""#,
+        #""tags":["work",4]"#,
+        #""tags":null"#,
+        #""isPinned":"true""#,
+        #""useCount":"3""#,
+        #""updatedAt":"1""#,
+    ])
+    func currentImportRejectsMalformedSnippetFields(version: String, field: String) {
+        let json = Data(#"{"version":\#(version),"snippets":[{"id":"a","title":"A","content":"x",\#(field)}]}"#.utf8)
+        #expect(throws: DecodingError.self) { try ImportExport.decodeImport(json) }
+    }
+
+    @Test func legacyImportStillFallsBackToCategoryWhenTagsHaveWrongShape() throws {
+        let imported = try payload(#"[{"id":"a","title":"A","content":"x","tags":"bad shape","category":"Work"}]"#)
+        #expect(ImportExport.replace(with: imported).snippets[0].tags == ["work"])
+    }
+
     @Test(arguments: ["99", #""99""#, #""99.0.0""#], ["[]", #"{"futureShape":true}"#])
     func importRejectsFutureVersionsBeforeDecodingSnippets(version: String, snippets: String) {
         let json = Data(#"{"version":\#(version),"snippets":\#(snippets)}"#.utf8)

@@ -34,4 +34,25 @@ import SloppyCore
     func conflictingImportModesFail(flags: [String]) {
         #expect(throws: CommandError.self) { try Options(flags[...]) }
     }
+
+    @Test(arguments: [
+        ("stats", ["--replace"]),
+        ("import", ["--tag", "work"]),
+        ("render", ["--json"]),
+        ("search", ["--text", "hello"]),
+    ])
+    func rejectsFlagsForOtherCommands(command: String, flags: [String]) throws {
+        let options = try Options(flags[...])
+        #expect(throws: CommandError.self) { try options.validate(for: command) }
+    }
+
+    @Test(arguments: [
+        ("import", ["--replace", "--json"]),
+        ("stats", ["--json"]),
+        ("render", ["--text", "hello"]),
+        ("search", ["--tag", "work", "--sort", "alphabetical"]),
+    ])
+    func permitsRelevantCommandFlags(command: String, flags: [String]) throws {
+        try Options(flags[...]).validate(for: command)
+    }
 }

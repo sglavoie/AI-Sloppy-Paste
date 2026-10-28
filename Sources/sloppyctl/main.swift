@@ -71,6 +71,7 @@ struct Stats: Codable {
 
 struct Options {
     var positional: [String] = []
+    private(set) var usedFlags: Set<String> = []
     var dataURL = StorageFile.defaultURL
     var mode = ImportMode.merge
     var json = false
@@ -84,6 +85,7 @@ struct Options {
         var selectedImportMode: ImportMode?
         var iterator = arguments.makeIterator()
         while let argument = iterator.next() {
+            if argument.hasPrefix("--"), argument != "--" { usedFlags.insert(argument) }
             switch argument {
             case "--":
                 positional.append(contentsOf: iterator)
@@ -118,6 +120,22 @@ struct Options {
                 throw CommandError(description: "unknown option \(flag)")
             default: positional.append(argument)
             }
+        }
+    }
+
+    func validate(for command: String) throws {
+        let allowed: Set<String>
+        switch command {
+        case "import": allowed = ["--data", "--merge", "--replace", "--json"]
+        case "stats": allowed = ["--data", "--json"]
+        case "render": allowed = ["--data", "--text", "--file", "--id"]
+        case "search":
+            allowed = ["--data", "--json", "--tag", "--favorites", "--archived", "--needs-attention", "--sort"]
+        case "--version", "version", "-h", "--help", "help": allowed = []
+        default: return
+        }
+        if let flag = usedFlags.subtracting(allowed).sorted().first {
+            throw CommandError(description: "\(flag) is not valid for \(command)")
         }
     }
 }
@@ -190,6 +208,7 @@ func run(_ arguments: [String]) throws {
         return
     }
     let options = try Options(arguments.dropFirst(2))
+    try options.validate(for: command)
     let file = StorageFile(url: options.dataURL)
 
     switch command {

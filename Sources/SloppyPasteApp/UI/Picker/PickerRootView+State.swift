@@ -79,7 +79,7 @@ extension PickerRootView {
         guard case .snippet(let snippet) = currentSelection() else { return }
         switch SnippetPreparation.plan(for: snippet, now: store.now()) {
         case .direct(let prepared):
-            pickerPanel?.deliver(prepared, snippetID: snippet.id, mode: mode)
+            pickerPanel?.deliver(prepared, snippetID: snippet.id, expectedContent: snippet.content, mode: mode)
         case .form:
             navigator.push(.placeholderForm(snippetID: snippet.id, mode: mode.formMode))
         }
@@ -89,11 +89,16 @@ extension PickerRootView {
     func pasteSelectedWithLastValues() {
         guard case .snippet(let snippet) = currentSelection() else { return }
         do {
+            try store.requireUnchangedSnippetContent(id: snippet.id, expectedContent: snippet.content)
             let prepared = try SnippetPreparation.prepareWithLastValues(
                 snippet, history: store.data.placeholderHistory, now: store.now())
-            pickerPanel?.deliver(prepared, snippetID: snippet.id, mode: .paste)
+            pickerPanel?.deliver(prepared, snippetID: snippet.id, expectedContent: snippet.content, mode: .paste)
         } catch {
-            pickerPanel?.showFailure("Missing History", message: error.description)
+            if let missing = error as? MissingPlaceholderHistoryError {
+                pickerPanel?.showFailure("Missing History", message: missing.description)
+            } else {
+                pickerPanel?.showFailure("Could Not Use Snippet", message: error.localizedDescription)
+            }
         }
     }
 
@@ -124,8 +129,10 @@ extension PickerRootView {
 
     func copyTitle(_ snippet: Snippet) {
         do {
-            try Pasteboard.copy(snippet.title)
-            toasts.success("Copied Title", message: snippet.title)
+            let current = try store.requireCurrentData().data.snippets.first { $0.id == snippet.id }
+            guard let current else { throw StorageError.snippetNotFound }
+            try Pasteboard.copy(current.title)
+            toasts.success("Copied Title", message: current.title)
         } catch {
             toasts.failure("Could Not Copy", message: String(describing: error))
         }

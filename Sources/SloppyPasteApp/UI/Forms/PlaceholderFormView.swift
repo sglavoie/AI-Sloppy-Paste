@@ -254,8 +254,11 @@ struct PlaceholderFormView: View {
             focusedStop = form.focusStops.first
         case .direct(let prepared):
             // The snippet lost its placeholders since the picker opened.
-            pickerPanel?.deliver(prepared, snippetID: stored.id, mode: .init(mode))
-            if mode == .copyAndStay { navigator.pop() }
+            pickerPanel?.deliver(
+                prepared, snippetID: stored.id, expectedContent: stored.content, mode: .init(mode)
+            ) {
+                if mode == .copyAndStay && navigator.current == route { navigator.pop() }
+            }
         }
     }
 
@@ -273,9 +276,12 @@ struct PlaceholderFormView: View {
             focusedStop = form.firstErrorStop
             return
         }
-        pickerPanel?.deliver(prepared, snippetID: snippet.id, mode: .init(submitMode))
         // Like the extension, copy-and-stay returns to the list for another pick.
-        if submitMode == .copyAndStay { navigator.pop() }
+        pickerPanel?.deliver(
+            prepared, snippetID: snippet.id, expectedContent: sourceContent, mode: .init(submitMode)
+        ) {
+            if submitMode == .copyAndStay && navigator.current == route { navigator.pop() }
+        }
     }
 
     private func moveFocus(by offset: Int) {

@@ -245,16 +245,18 @@ It uses the same `StorageData` JSON shape as the Raycast extension's export.
 - Writes are atomic and pretty-printed.
 - A replace-import first copies the current file to `data.json.bak`.
 - Editing the file by hand is fine: the app reloads it when it changes.
-- If a reload fails, the last good data stays visible and changes and imports
-  are blocked until the file can be read again. A partial external edit is left
-  in place for its writer to finish; fix the file and retry. Editor drafts stay
-  intact.
+- If a reload fails, the last good data stays visible, but changes, imports,
+  and snippet delivery are blocked until the file can be read again. A partial
+  external edit is left in place for its writer to finish; fix the file and
+  retry. Editor drafts stay intact.
 - App and `sloppyctl` writes use `data.json.lock` to serialize edits across
   processes. Changes made by an external editor that does not use this lock
   are detected before saving, and the app reports a conflict.
 - A data file with a newer storage version is left untouched and blocks changes
   and imports. Imports from newer export versions are also rejected before
   changing existing data. Update Sloppy Paste to a version that supports it.
+- Imports using the current export version reject malformed snippet fields;
+  older exports retain legacy field conversion.
 - On startup, an incomplete or undecodable file is never overwritten. It is
   moved aside as `data.corrupt-<timestamp>.json`, the app starts empty, and an
   alert explains how to restore it. A current-version file with a field of the

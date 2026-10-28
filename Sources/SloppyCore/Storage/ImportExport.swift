@@ -22,8 +22,47 @@ public struct ImportPayload: Decodable, Sendable, Hashable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         try StorageMigrations.requireSupportedVersion(in: c, forKey: .version)
+        let majorVersion = (try? c.decode(Int.self, forKey: .version))
+            ?? (try? c.decode(String.self, forKey: .version)).flatMap { Int($0.split(separator: ".")[0]) }
+        if majorVersion == StorageConstants.currentVersion {
+            // Keep missing fields compatible with older exports, but never
+            // silently replace malformed current fields with legacy defaults.
+            _ = try c.decode([CurrentImportSnippetShape].self, forKey: .snippets)
+        }
         snippets = try c.decode([LegacySnippet].self, forKey: .snippets)
         placeholderHistory = try c.decodeIfPresent(PlaceholderHistory.self, forKey: .placeholderHistory)
+    }
+}
+
+/// Checks the type of every present current-version snippet field. Legacy
+/// files still use `LegacySnippet`'s permissive decoding and backfilling.
+private struct CurrentImportSnippetShape: Decodable {
+    private enum CodingKeys: String, CodingKey {
+        case id, title, content, description, tags, category, createdAt, updatedAt
+        case lastUsedAt, useCount, isFavorite, isArchived, isPinned
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        _ = try c.decode(String.self, forKey: .id)
+        _ = try c.decode(String.self, forKey: .title)
+        _ = try c.decode(String.self, forKey: .content)
+        try checkIfPresent(String.self, forKey: .description, in: c)
+        try checkIfPresent([String].self, forKey: .tags, in: c)
+        _ = try c.decodeIfPresent(String.self, forKey: .category)
+        try checkIfPresent(Int64.self, forKey: .createdAt, in: c)
+        try checkIfPresent(Int64.self, forKey: .updatedAt, in: c)
+        _ = try c.decodeIfPresent(Int64.self, forKey: .lastUsedAt)
+        try checkIfPresent(Int.self, forKey: .useCount, in: c)
+        try checkIfPresent(Bool.self, forKey: .isFavorite, in: c)
+        try checkIfPresent(Bool.self, forKey: .isArchived, in: c)
+        try checkIfPresent(Bool.self, forKey: .isPinned, in: c)
+    }
+
+    private func checkIfPresent<T: Decodable>(
+        _ type: T.Type, forKey key: CodingKeys, in container: KeyedDecodingContainer<CodingKeys>
+    ) throws {
+        if container.contains(key) { _ = try container.decode(type, forKey: key) }
     }
 }
 

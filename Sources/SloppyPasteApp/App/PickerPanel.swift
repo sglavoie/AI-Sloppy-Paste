@@ -251,28 +251,44 @@ final class PickerPanelController {
     }
 
     /// Pastes or copies the prepared content, reports the outcome in a HUD,
-    /// and then records the use if delivery succeeded. The panel hides first
-    /// unless the mode is `.copyAndStay`.
-    func deliver(_ prepared: PreparedSnippet, snippetID: String, mode: DeliveryMode) {
-        let target = previousApp
-        if mode != .copyAndStay {
-            hide()
+    /// and then records the use if delivery succeeded. The panel hides after
+    /// the final content check unless the mode is `.copyAndStay`.
+    @discardableResult
+    func deliver(
+        _ prepared: PreparedSnippet, snippetID: String, expectedContent: String, mode: DeliveryMode,
+        onDelivered: (@MainActor () -> Void)? = nil
+    ) -> Bool {
+        do {
+            try store.requireUnchangedSnippetContent(id: snippetID, expectedContent: expectedContent)
+        } catch {
+            showFailure("Could Not Use Snippet", message: error.localizedDescription)
+            return false
         }
+        let target = previousApp
         Task { @MainActor in
-            _ = await snippetUse.run(
+            let delivered = await snippetUse.run(
                 snippetID: snippetID,
                 placeholderValues: prepared.placeholderValues,
-                prepare: { prepared },
+                prepare: { [store] in
+                    try await store.requireUnchangedSnippetContent(id: snippetID, expectedContent: expectedContent)
+                    return prepared
+                },
                 primaryOperation: { [self] prepared in
-                    try await performDelivery(prepared.content, mode: mode, target: target)
+                    if mode != .copyAndStay { await hide() }
+                    return try await performDelivery(prepared.content, mode: mode, target: target)
                 },
                 shouldRecord: { $0 != .copiedOnly(.clipboardChanged) },
-                onPreparationFailure: { _ in },
+                onPreparationFailure: { [weak self] error in
+                    await self?.hud.show(
+                        "Could Not Use Snippet", message: error.localizedDescription, symbol: "xmark.octagon")
+                },
                 onPrimaryFailure: { [weak self] error in
                     await self?.hud.show("Could Not Copy", message: String(describing: error), symbol: "xmark.octagon")
                 }
             )
+            if delivered { onDelivered?() }
         }
+        return true
     }
 
     private func performDelivery(_ content: String, mode: DeliveryMode, target: NSRunningApplication?) async throws -> PasteOutcome {

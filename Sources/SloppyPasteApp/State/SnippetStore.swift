@@ -82,8 +82,8 @@ final class SnippetStore {
         }
     }
 
-    /// A placeholder form may stay open while an external writer edits its
-    /// snippet. Check the source text again before using the form's rendering.
+    /// A picker selection or placeholder form may stay open while an external
+    /// writer edits its snippet. Check the source text before delivering it.
     func requireUnchangedSnippetContent(id: String, expectedContent: String) throws {
         let snapshot = try requireCurrentData()
         guard snapshot.data.snippets.first(where: { $0.id == id })?.content == expectedContent else {
@@ -93,7 +93,7 @@ final class SnippetStore {
 
     private struct SnippetContentChanged: LocalizedError {
         var errorDescription: String? {
-            "The snippet changed while this form was open. Your entries are still here. Go back and reopen the snippet to use its latest content."
+            "The snippet changed while the picker was open. Review its latest content and try again."
         }
     }
 

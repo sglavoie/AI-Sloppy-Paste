@@ -170,10 +170,15 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
         #expect(process("{{#if a}}{{#if b}}unclosed{{/if}}", ["a": "1", "b": "1"]) == "{{#if a}}unclosed")
     }
 
-    @Test func nestingDeeperThanTenLevelsStopsResolving() {
-        let depth = 11
+    @Test(arguments: [11, 32])
+    func deeplyNestedBlocksResolveCompletely(depth: Int) {
         let text = String(repeating: "{{#if a}}", count: depth) + "x" + String(repeating: "{{/if}}", count: depth)
-        #expect(process(text, ["a": "1"]) == "{{#if a}}x{{/if}}")
+        #expect(process(text, ["a": "1"]) == "x")
+        #expect(process(text, ["a": ""]) == "")
+
+        let outer = "{{#if outer}}\(text){{#else}}fallback{{/if}}"
+        #expect(process(outer, ["outer": "", "a": "1"]) == "fallback")
+        #expect(process(outer, ["outer": "1", "a": "1"]) == "x")
     }
 
     @Test func fullTemplateWithGuardPlaceholderAndRepeatedConditional() {
@@ -279,6 +284,15 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 /// under Node 24, covering wrappers with empty values, emoji, CJK and CRLF.
 /// CRLF cleanup intentionally fixes the legacy renderer's split line endings.
 @Suite struct RenderPipelineGoldenTests {
+    @Test(arguments: ["{{name|Ada}}", "{{name[Ada|Bob]|Ada}}", "{{(:name:)|Ada}}"])
+    func defaultsAlsoDetermineConditionalBranches(declaration: String) {
+        let text = "{{#if name}}Hello \(declaration){{#else}}Anonymous{{/if}}"
+        let expected = declaration.contains("(:") ? "Hello (Ada)" : "Hello Ada"
+        #expect(PlaceholderRenderer.render(text, values: [:], now: 0) == expected)
+        #expect(PlaceholderRenderer.render(text, values: ["name": ""], now: 0) == "Anonymous")
+        #expect(PlaceholderRenderer.render(text, values: ["name": " \t"], now: 0) == "Anonymous")
+    }
+
     static let cases: [(String, [String: String], String)] = [
         ("{{#if 名前}}こんにちは {{名前}}{{#else}}やあ{{/if}}", ["名前": "太郎"], "こんにちは 太郎"),
         ("{{#if 名前}}こんにちは {{名前}}{{#else}}やあ{{/if}}", ["名前": ""], "やあ"),

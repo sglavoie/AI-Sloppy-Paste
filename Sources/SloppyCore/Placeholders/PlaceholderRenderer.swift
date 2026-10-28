@@ -3,7 +3,8 @@ import Foundation
 public enum PlaceholderRenderer {
     /// The full snippet pipeline: system placeholders, then conditional blocks,
     /// then value placeholders (with placeholders extracted after the system
-    /// pass, so `{{DATE}}` never becomes a user field).
+    /// pass, so `{{DATE}}` never becomes a user field). Authored defaults apply
+    /// to both conditions and substitutions; explicit blank values override them.
     public static func render(
         _ content: String,
         values: [String: String],
@@ -12,8 +13,12 @@ public enum PlaceholderRenderer {
     ) -> String {
         let processed = SystemPlaceholders.process(content, now: now, timeZone: timeZone)
         let placeholders = PlaceholderSyntaxParser.extractPlaceholders(processed)
-        let afterBlocks = ConditionalBlocks.process(processed, values: values)
-        return replacePlaceholders(afterBlocks, values: values, placeholders: placeholders)
+        var resolvedValues = values
+        for placeholder in placeholders where resolvedValues[placeholder.key] == nil {
+            resolvedValues[placeholder.key] = placeholder.defaultValue
+        }
+        let afterBlocks = ConditionalBlocks.process(processed, values: resolvedValues)
+        return replacePlaceholders(afterBlocks, values: resolvedValues, placeholders: placeholders)
     }
 
     /// Replaces each value placeholder occurrence with its value, falling back

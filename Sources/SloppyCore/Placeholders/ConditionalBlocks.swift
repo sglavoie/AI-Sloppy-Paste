@@ -17,10 +17,8 @@ public struct ConditionalBlockBody: Sendable, Hashable {
 /// All matching uses Unicode-scalar semantics so a combining mark or emoji
 /// modifier next to a tag can never hide it, matching the JS UTF-16 regexes.
 public enum ConditionalBlocks {
-    private static let maxIterations = 10
-
-    /// Resolves every block against `values`, innermost first (up to 10
-    /// nesting levels). A key is truthy when its value is non-blank; guard-only
+    /// Resolves every block against `values`, innermost first.
+    /// A key is truthy when its value is non-blank; guard-only
     /// keys use `"true"` and `""`. One leading and one trailing newline of the
     /// selected body are dropped, so a block on its own lines leaves no blank
     /// line behind. Placeholders inside the chosen body are left for
@@ -32,7 +30,9 @@ public enum ConditionalBlocks {
             .matchingSemantics(.unicodeScalar)
 
         var result = text
-        for _ in 0..<maxIterations {
+        // Every successful pass removes control tags and shortens the text,
+        // so resolution terminates without imposing a nesting limit.
+        while true {
             var foundLeaf = false
             result = result.replacing(leaf) { match in
                 foundLeaf = true

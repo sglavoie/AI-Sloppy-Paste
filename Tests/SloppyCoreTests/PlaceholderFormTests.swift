@@ -164,10 +164,10 @@ private func choicePlaceholder(
 
     @Test func copiesOnceAndRecordsEligibleValuesWithOneWrite() async {
         let store = Store()
-        let snippet = await store.add("Hello {{required}}")
+        let snippet = await store.add("Hello {{required}} {{optional}}{{[:wrapped:]}}{{!private|}}{{blank|}}")
         #expect(await submit(store, snippet, Self.placeholders, Self.submittedValues))
 
-        #expect(await store.clipboard == ["Hello Ada"])
+        #expect(await store.clipboard == ["Hello Ada fallbacksecret"])
         #expect(await store.writes == 1)
         #expect(await store.useCount() == 1)
         #expect(await store.history("required").map(\.value) == ["Ada"])

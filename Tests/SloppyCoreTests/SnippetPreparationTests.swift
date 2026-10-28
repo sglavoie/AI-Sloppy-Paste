@@ -172,6 +172,40 @@ import Testing
         #expect(prepared.content == "Hi Ada")
     }
 
+    @Test(arguments: [false, true])
+    func unusedBranchValuesDoNotChangeHistory(useLastValues: Bool) throws {
+        let s = snippet("{{#if formal}}Dear {{name}}{{#else}}Hi {{nickname}}{{/if}}")
+        let saved = history(["name": "Ada", "nickname": "A"])
+        var form = PlaceholderFormModel(snippetContent: s.content,
+            placeholders: PlaceholderSyntaxParser.extractPlaceholders(s.content), history: saved, now: Self.now)
+        // A value typed in a branch that is subsequently excluded must not be saved either.
+        form.setCustomValue("name", "Unused edit")
+        let prepared: PreparedSnippet
+        if useLastValues {
+            prepared = try SnippetPreparation.prepareWithLastValues(s, history: saved, now: Self.now)
+        } else {
+            let submission = form.prepareSubmission()
+            prepared = try #require(submission)
+        }
+        #expect(prepared.content == "Hi A")
+        var repository = SnippetRepository(data: StorageData(snippets: [s], placeholderHistory: saved))
+        try repository.recordUse(id: s.id, placeholderValues: prepared.placeholderValues, now: Self.now)
+        #expect(repository.data.placeholderHistory["name"] == saved["name"])
+        #expect(repository.data.placeholderHistory["nickname"]?.first?.useCount == 2)
+        #expect(repository.data.placeholderHistory["nickname"]?.first?.lastUsed == Self.now)
+        #expect(repository.snippets.first?.useCount == 1)
+    }
+
+    @Test func visibleReferenceStillRecordsValueDeclaredInHiddenBranch() throws {
+        let s = snippet("{{#if formal}}{{name[Ada|Bob]}}{{/if}}Hi {{name}}")
+        var form = PlaceholderFormModel(snippetContent: s.content,
+            placeholders: PlaceholderSyntaxParser.extractPlaceholders(s.content), history: [:], now: Self.now)
+        let submission = form.prepareSubmission()
+        let prepared = try #require(submission)
+        #expect(prepared.content == "Hi Ada")
+        #expect(prepared.placeholderValues.contains(.init(key: "name", value: "Ada")))
+    }
+
     @Test func lastValuesRequiresHistoryForTheSelectedElseBranch() throws {
         let s = snippet("{{#if formal}}{{name}}{{#else}}{{nickname}}{{/if}}")
         #expect(SnippetPreparation.lastValuesAvailability(for: s, history: history(["name": "Ada"]), now: Self.now)

@@ -174,7 +174,7 @@ struct ManageTagsView: View {
         selectedID = ListSelection.neighbour(of: stats.tag, in: currentLines().map(\.id))
         store.reloadIfChanged()
         do {
-            try store.mutate { repository, now in repository.deleteTag(stats.tag, now: now) }
+            try store.mutate { repository, now in try repository.deleteTag(stats.tag, now: now) }
             toasts.success("Tag deleted")
         } catch {
             toasts.failure("Failed to delete tag", message: error.localizedDescription)

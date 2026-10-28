@@ -77,8 +77,13 @@ public struct SnippetRepository: Sendable, Hashable {
         return snippet
     }
 
-    public mutating func deleteSnippet(id: String) {
+    /// Returns whether a snippet was actually removed. A stale picker selection
+    /// must not turn into a successful no-op after an external edit.
+    @discardableResult
+    public mutating func deleteSnippet(id: String) -> Bool {
+        let count = data.snippets.count
         data.snippets.removeAll { $0.id == id }
+        return data.snippets.count != count
     }
 
     @discardableResult
@@ -126,8 +131,11 @@ public struct SnippetRepository: Sendable, Hashable {
     // MARK: Tags
 
     /// Removes `tag` (normalized exact match) without removing its descendants.
-    public mutating func deleteTag(_ tag: String, now: Int64) {
+    public mutating func deleteTag(_ tag: String, now: Int64) throws {
         let tag = TagNormalization.normalizeTag(tag)
+        guard data.snippets.contains(where: {
+            $0.tags.contains { TagNormalization.normalizeTag($0) == tag }
+        }) else { throw StorageError.tagNotFound }
         for index in data.snippets.indices
         where data.snippets[index].tags.contains(where: { TagNormalization.normalizeTag($0) == tag }) {
             data.snippets[index].tags.removeAll { TagNormalization.normalizeTag($0) == tag }
@@ -168,6 +176,7 @@ public struct SnippetRepository: Sendable, Hashable {
                 .filter { seen.insert(TagNormalization.normalizeTag($0)).inserted }
             changes.append((index, updatedTags))
         }
+        guard !changes.isEmpty else { throw StorageError.tagNotFound }
         // Validate every descendant first so a failure cannot leave a partial rename.
         for change in changes {
             data.snippets[change.index].tags = change.tags

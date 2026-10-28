@@ -6,6 +6,7 @@ public enum StorageError: Error, Equatable, LocalizedError {
     case dataChangedSinceRead
     case dataFileDisappeared
     case snippetNotFound
+    case tagNotFound
     case cannotMergeTagWithItself
     case invalidTag(tag: String, reason: String)
     case emptyPlaceholderValue
@@ -24,6 +25,7 @@ public enum StorageError: Error, Equatable, LocalizedError {
         case .dataFileDisappeared:
             "The data file disappeared after it was loaded. No changes were saved; restore it or restart the app."
         case .snippetNotFound: "Snippet not found"
+        case .tagNotFound: "Tag not found"
         case .cannotMergeTagWithItself: "Cannot merge a tag with itself"
         case .invalidTag(let tag, let reason): "Cannot use tag \"\(tag)\": \(reason). No tags were changed."
         case .emptyPlaceholderValue: "New value cannot be empty"

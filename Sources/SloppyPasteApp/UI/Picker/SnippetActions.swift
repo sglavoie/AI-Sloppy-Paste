@@ -22,7 +22,7 @@ struct SnippetActions {
 
     func delete(_ snippet: Snippet) {
         let deleted: Void? = perform(failure: "Failed to delete snippet") { repository, _ in
-            repository.deleteSnippet(id: snippet.id)
+            guard repository.deleteSnippet(id: snippet.id) else { throw StorageError.snippetNotFound }
         }
         if deleted != nil {
             toasts.success("Snippet deleted")

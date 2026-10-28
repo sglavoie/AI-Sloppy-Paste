@@ -43,10 +43,12 @@ extension StorageData {
         return true
     }
 
-    /// Removes a value, and the key once it has no values left. Returns false if the key is unknown.
+    /// Removes a value, and the key once it has no values left. Returns false
+    /// if the key or value is unknown.
     @discardableResult
     public mutating func deletePlaceholderValue(key: String, value: String) -> Bool {
         guard var values = placeholderHistory[key] else { return false }
+        guard values.contains(where: { $0.value == value }) else { return false }
         values.removeAll { $0.value == value }
         placeholderHistory[key] = values.isEmpty ? nil : values
         return true

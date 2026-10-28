@@ -142,8 +142,18 @@ import Testing
     @Test func deleteRemovesSnippet() {
         var repo = SnippetRepository()
         let snippet = repo.addSnippet(title: "T", content: "C", now: 1)
-        repo.deleteSnippet(id: snippet.id)
+        let deleted = repo.deleteSnippet(id: snippet.id)
+        #expect(deleted)
         #expect(repo.snippets.isEmpty)
+    }
+
+    @Test func deleteMissingSnippetChangesNothing() {
+        var repo = SnippetRepository()
+        repo.addSnippet(title: "Keep", content: "C", now: 1, id: "keep")
+        let before = repo
+        let deleted = repo.deleteSnippet(id: "deleted-externally")
+        #expect(!deleted)
+        #expect(repo == before)
     }
 }
 
@@ -162,9 +172,9 @@ import Testing
         #expect(r.snippets[0].tags == [" Work ", "WORK"])
     }
 
-    @Test func deleteMatchesNormalizedTagButKeepsDescendants() {
+    @Test func deleteMatchesNormalizedTagButKeepsDescendants() throws {
         var r = externallyEditedTags()
-        r.deleteTag(" work ", now: 2)
+        try r.deleteTag(" work ", now: 2)
         #expect(r.snippets.map(\.tags) == [[], ["Work/Admin", "OFFICE/Admin"], ["Workshop"]])
         #expect(r.snippets.map(\.updatedAt) == [2, 1, 1])
     }
@@ -188,6 +198,15 @@ import Testing
         #expect(throws: StorageError.cannotMergeTagWithItself) {
             try r.mergeTags(" WORK ", into: "work", now: 2)
         }
+        #expect(r == before)
+    }
+
+    @Test func missingTagActionsDoNotChangeSnippets() {
+        var r = repo([["keep"]])
+        let before = r
+        #expect(throws: StorageError.tagNotFound) { try r.deleteTag("gone", now: 2) }
+        #expect(throws: StorageError.tagNotFound) { try r.renameTag("gone", to: "new", now: 2) }
+        #expect(throws: StorageError.tagNotFound) { try r.mergeTags("gone", into: "keep", now: 2) }
         #expect(r == before)
     }
 
@@ -252,16 +271,16 @@ import Testing
         #expect(repo([tags]).snippets[0].tags == expected)
     }
 
-    @Test func deleteTagRemovesFromAllSnippets() {
+    @Test func deleteTagRemovesFromAllSnippets() throws {
         var r = repo([["work", "important"], ["work", "personal"]])
-        r.deleteTag("work", now: 2)
+        try r.deleteTag("work", now: 2)
         #expect(r.snippets.map(\.tags) == [["important"], ["personal"]])
         #expect(r.tags == ["important", "personal"])
     }
 
-    @Test func deleteTagOnlyBumpsAffectedSnippets() {
+    @Test func deleteTagOnlyBumpsAffectedSnippets() throws {
         var r = repo([["work"], ["personal"]])
-        r.deleteTag("work", now: 5)
+        try r.deleteTag("work", now: 5)
         #expect(r.snippets.map(\.updatedAt) == [5, 1])
         #expect(r.snippets[1].tags == ["personal"])
     }
@@ -313,7 +332,7 @@ import Testing
     @Test func operationsInSequence() throws {
         var r = repo([["work", "urgent"], ["work", "important"]])
         try r.renameTag("work", to: "office", now: 2)
-        r.deleteTag("urgent", now: 3)
+        try r.deleteTag("urgent", now: 3)
         try r.mergeTags("important", into: "office", now: 4)
         #expect(r.tags == ["office"])
         #expect(r.snippets.map(\.tags) == [["office"], ["office"]])
@@ -381,6 +400,11 @@ import Testing
         #expect(throws: StorageError.emptyPlaceholderValue) { try data.updatePlaceholderValue(key: "k", oldValue: "a2", newValue: " ") }
         #expect(throws: StorageError.placeholderKeyNotFound) { try data.updatePlaceholderValue(key: "x", oldValue: "a2", newValue: "z") }
         #expect(throws: StorageError.placeholderValueNotFound) { try data.updatePlaceholderValue(key: "k", oldValue: "nope", newValue: "z") }
+
+        let beforeMissingDelete = data
+        let removedMissingValue = data.deletePlaceholderValue(key: "k", value: "nope")
+        #expect(!removedMissingValue)
+        #expect(data == beforeMissingDelete)
 
         data.deletePlaceholderValue(key: "k", value: "a2")
         data.deletePlaceholderValue(key: "k", value: "b")

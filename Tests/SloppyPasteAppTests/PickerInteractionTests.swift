@@ -73,6 +73,30 @@ import SloppyCore
         #expect(picker.store.lastError != nil)
     }
 
+    @Test func archiveQueryOffersArchivedTagsInChooser() async throws {
+        let picker = try Harness(query: "is:archived")
+        defer { picker.close() }
+        try picker.store.mutate { repository, now in
+            for snippet in repository.snippets {
+                try repository.updateSnippet(id: snippet.id, now: now) {
+                    $0.tags = [snippet.id == "0" ? "archived-only" : "active-only"]
+                    $0.isArchived = snippet.id == "0"
+                }
+            }
+        }
+        await picker.settle()
+        try picker.action("filterByTag")
+        await picker.settle()
+        // Narrow to a tag carried only by an archived snippet, then apply it.
+        try picker.typeQuery("archived-only", placeholder: "Filter tags…")
+        await picker.settle()
+        let apply = try #require(picker.router.bindings(for: .root).first { $0.id == "applyTagFilter" })
+        #expect(apply.isEnabled)
+        apply.perform()
+        await picker.settle()
+        #expect(picker.router.bindings(for: .root).first { $0.id == "paste" }?.isEnabled == true)
+    }
+
     @MainActor private final class Harness {
         let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         let file: StorageFile
@@ -145,8 +169,8 @@ import SloppyCore
             binding.perform()
         }
 
-        func typeQuery(_ query: String) throws {
-            let field = try #require(searchField)
+        func typeQuery(_ query: String, placeholder: String? = nil) throws {
+            let field = try #require(textField(placeholder: placeholder))
             field.stringValue = query
             field.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: field))
         }
@@ -160,8 +184,14 @@ import SloppyCore
         }
 
         var searchField: NSTextField? {
+            textField()
+        }
+
+        func textField(placeholder: String? = nil) -> NSTextField? {
             func find(_ view: NSView) -> NSTextField? {
-                if let field = view as? NSTextField { return field }
+                if let field = view as? NSTextField, placeholder == nil || field.placeholderString == placeholder {
+                    return field
+                }
                 return view.subviews.lazy.compactMap(find).first
             }
             return window.contentView.flatMap(find)

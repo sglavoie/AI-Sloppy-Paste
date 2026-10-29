@@ -39,6 +39,26 @@ import Testing
         #expect(preview(content) == "⟨if outer: A ⟨if inner: Hi ⟨name⟩ | else: B⟩ | else: C⟩")
     }
 
+    @Test func largeNestedTemplateCanBePreviewedWhileEditing() {
+        let depth = 4_000
+        let content = String(repeating: "{{#if +a}}", count: depth)
+            + "{{name}}" + String(repeating: "{{/if}}", count: depth)
+        #expect(content.count < ValidationLimits.contentMaxLength)
+        #expect(preview(content) == String(String(repeating: "⟨if a: ", count: depth).prefix(500)))
+    }
+
+    @Test(arguments: [
+        ("  {{#if k}}\n \n{{/if}}  ", "  ⟨if k: ⟩  "),
+        ("{{#if k}} \u{FEFF} hi \u{FEFF} {{/if}}", "⟨if k: hi⟩"),
+        ("{{#if k}}\n{{#else}}\nno\n{{/else}}\n{{/if}}", "⟨if k: | else: \nno⟩"),
+        ("Before {{#if outer}}\n{{#if inner}}B{{/if}} ", "Before {{#if outer}}\n⟨if inner: B⟩ "),
+        (#"{{#if k "Include {{#if fake}}?"}}Hello{{/if}}"#, "⟨if k: Hello⟩"),
+        ("{{#else}} {{#if k}}yes{{/if}} {{/else}}", "{{#else}} ⟨if k: yes⟩ {{/else}}"),
+    ])
+    func conditionalPreviewPreservesSurroundingText(content: String, expected: String) {
+        #expect(preview(content) == expected)
+    }
+
     @Test(arguments: [" ", "\t", "\n", "\r\n"])
     func previewAcceptsRenderingWhitespace(separator: String) {
         let content = "{{#if\(separator)+show \"Show date\"}}{{\(separator)DATE\(separator)}}{{/if}}"

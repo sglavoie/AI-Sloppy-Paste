@@ -29,20 +29,78 @@ public enum SnippetPreview {
 
     private static func previewConditionalBlocks(_ content: String) -> String {
         guard content.contains(/\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)) else { return content }
-        // Annotate innermost blocks first so each closing tag and else branch
-        // belongs to its own condition. Each pass removes at least one block.
-        let block = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}((?:(?!\{\{#if\s)[\s\S])*?)\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)
-        var result = content
-        while result.contains(block) {
-            result = result.replacing(block) { match in
-                let displayKey = ConditionalBlocks.conditionKey(String(match.1))
-                let cleanBody = String(match.2)
-                    .replacingOccurrences(of: "{{#else}}", with: " | else: ")
-                    .replacingOccurrences(of: "{{/else}}", with: "")
-                return "⟨if \(displayKey): \(cleanBody.trimmed)⟩"
+        let expressions = PlaceholderSyntaxParser.scanExpressions(content)
+        let opener = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}/.matchingSemantics(.unicodeScalar)
+        var stack: [(index: Int, key: String)] = []
+        var openers: [Int: String] = [:]
+        var closers = Set<Int>()
+        for (index, expression) in expressions.enumerated() {
+            if let match = expression.raw.wholeMatch(of: opener) {
+                stack.append((index, ConditionalBlocks.conditionKey(String(match.1))))
+            } else if expression.raw == "{{/if}}", let matched = stack.popLast() {
+                openers[matched.index] = matched.key
+                closers.insert(index)
             }
         }
-        return result
+
+        // Annotate matched pairs in one pass. Repeated innermost regex
+        // replacements stall the editor on deeply nested, valid templates.
+        // Buffer whitespace so each completed body is trimmed without
+        // repeatedly copying its already-annotated children.
+        var result = ""
+        var pendingWhitespace = ""
+        var trimLeading = false
+        func append(_ text: some StringProtocol) {
+            let scalars = String(text).unicodeScalars
+            var start = scalars.startIndex
+            if trimLeading {
+                while start < scalars.endIndex, isWhitespace(scalars[start]) {
+                    start = scalars.index(after: start)
+                }
+            }
+            guard start < scalars.endIndex else { return }
+            var end = scalars.endIndex
+            while end > start, isWhitespace(scalars[scalars.index(before: end)]) {
+                end = scalars.index(before: end)
+            }
+            if start < end {
+                result += pendingWhitespace
+                result += String(scalars[start..<end])
+                pendingWhitespace = ""
+                trimLeading = false
+            }
+            pendingWhitespace += String(scalars[end...])
+        }
+        func isWhitespace(_ scalar: Unicode.Scalar) -> Bool {
+            scalar == "\u{FEFF}" || scalar.properties.isWhitespace
+        }
+
+        var cursor = content.startIndex
+        var depth = 0
+        for (index, expression) in expressions.enumerated() {
+            append(content[cursor..<expression.indices.lowerBound])
+            cursor = expression.indices.upperBound
+            if let key = openers[index] {
+                append("⟨if \(key): ")
+                // The marker's trailing space is part of the annotation.
+                result += pendingWhitespace
+                pendingWhitespace = ""
+                trimLeading = true
+                depth += 1
+            } else if closers.contains(index) {
+                pendingWhitespace = ""
+                append("⟩")
+                depth -= 1
+            } else if depth > 0, expression.raw == "{{#else}}" {
+                append(" | else: ")
+            } else if depth > 0, expression.raw == "{{/else}}" {
+                continue
+            } else {
+                append(expression.raw)
+            }
+        }
+        append(content[cursor...])
+        return result + pendingWhitespace
     }
 
     private static func previewValuePlaceholders(_ content: String) -> String {

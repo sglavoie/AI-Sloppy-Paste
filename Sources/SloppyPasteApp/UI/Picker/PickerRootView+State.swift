@@ -30,7 +30,9 @@ extension PickerRootView {
     func openTagChooser() {
         searchFocused = false
         tagChooser = TagFilterChooserModel(
-            snippets: store.snippets, showArchived: options.showArchivedSnippets, currentTag: options.selectedTag
+            snippets: store.snippets,
+            showArchived: options.showArchivedSnippets || QueryParser.parse(query).isFilters.contains(.archived),
+            currentTag: options.selectedTag
         ) { tag in
             options.selectedTag = tag
             closeTagChooser()

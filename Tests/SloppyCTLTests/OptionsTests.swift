@@ -30,6 +30,17 @@ import SloppyCore
         #expect(options.positional == ["name=Ada"])
     }
 
+    @Test(arguments: [
+        ("--data", "--json"),
+        ("--text", "--json"),
+        ("--file", "--data"),
+        ("--id", "--replace"),
+        ("--tag", "--favorites"),
+    ])
+    func followingOptionCannotBeConsumedAsValue(flag: String, next: String) {
+        #expect(throws: CommandError.self) { try Options([flag, next][...]) }
+    }
+
     @Test func unknownOptionsStillFailBeforeTerminator() {
         #expect(throws: CommandError.self) { try Options(["--unknown"][...]) }
     }

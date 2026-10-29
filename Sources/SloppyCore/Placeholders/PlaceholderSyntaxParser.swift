@@ -55,9 +55,35 @@ public enum PlaceholderSyntaxParser {
     public static func parse(_ text: String) -> PlaceholderSyntaxResult {
         var occurrences: [ParsedValuePlaceholderOccurrence] = []
         var diagnostics: [PlaceholderSyntaxDiagnostic] = []
+        var openBlocks: [(expression: ScannedExpression, hasElse: Bool)] = []
+        let conditionalOpen = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}/.matchingSemantics(.unicodeScalar)
 
         for expression in scanExpressions(text) {
             let trimmed = expression.content.trimmed
+            if expression.raw.wholeMatch(of: conditionalOpen) != nil {
+                openBlocks.append((expression, false))
+                continue
+            }
+            if expression.raw == "{{#else}}" {
+                if let index = openBlocks.indices.last, !openBlocks[index].hasElse {
+                    openBlocks[index].hasElse = true
+                } else {
+                    diagnostics.append(conditionalDiagnostic(expression, "Unexpected {{#else}}"))
+                }
+                continue
+            }
+            if expression.raw == "{{/else}}" {
+                if openBlocks.last?.hasElse != true {
+                    diagnostics.append(conditionalDiagnostic(expression, "Unexpected {{/else}}"))
+                }
+                continue
+            }
+            if expression.raw == "{{/if}}" {
+                if openBlocks.popLast() == nil {
+                    diagnostics.append(conditionalDiagnostic(expression, "Unexpected {{/if}}"))
+                }
+                continue
+            }
             if trimmed.contains(/^#if\s/.matchingSemantics(.unicodeScalar)) || controlExpressions.contains(trimmed) { continue }
 
             let occurrence: ParsedValuePlaceholderOccurrence
@@ -92,6 +118,7 @@ public enum PlaceholderSyntaxParser {
             if !occurrence.key.isEmpty { occurrences.append(occurrence) }
         }
 
+        diagnostics += openBlocks.map { conditionalDiagnostic($0.expression, "Missing {{/if}} for \($0.expression.raw)") }
         diagnostics += PlaceholderAggregator.findChoiceConflicts(occurrences)
         diagnostics = diagnostics.stableSorted {
             ($0.range.start, $0.range.end) < ($1.range.start, $1.range.end)
@@ -107,6 +134,10 @@ public enum PlaceholderSyntaxParser {
     /// Unique placeholders in form order (`extractPlaceholders` in TS).
     public static func extractPlaceholders(_ text: String) -> [Placeholder] {
         parse(text).placeholders
+    }
+
+    private static func conditionalDiagnostic(_ expression: ScannedExpression, _ message: String) -> PlaceholderSyntaxDiagnostic {
+        PlaceholderSyntaxDiagnostic(range: expression.range, expression: expression.raw, message: message)
     }
 
     struct ScannedExpression {

@@ -259,6 +259,67 @@ import Testing
         #expect(result.data == .empty)
     }
 
+    @Test func repairedFileBetweenComparisonAndQuarantineIsRestored() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{broken".utf8).write(to: file.url)
+        let repaired = StorageData(snippets: [
+            Snippet(id: "repaired", title: "Repaired", content: "keep", createdAt: 1, updatedAt: 1),
+        ])
+        let repairedBytes = try StorageCoding.encode(repaired)
+
+        #expect(throws: StorageError.dataChangedSinceRead) {
+            try file.load(now: 1234, beforeQuarantine: {
+                try repairedBytes.write(to: file.url, options: .atomic)
+            })
+        }
+
+        #expect(try Data(contentsOf: file.url) == repairedBytes)
+        #expect(try file.read() == repaired)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path)
+            == ["data.json"])
+    }
+
+    @Test func thirdWriterDuringQuarantinePreservesBothVersions() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{broken".utf8).write(to: file.url)
+        let replacement = Data(#"{"version":7,"snippets":[],"tags":[],"placeholderHistory":{}}"#.utf8)
+        let thirdWriter = Data("third writer".utf8)
+        let quarantine = file.quarantineURL(now: 1234)
+
+        #expect(throws: StorageError.concurrentWriteNeedsRecovery(quarantine)) {
+            try file.load(now: 1234, beforeQuarantine: {
+                try replacement.write(to: file.url, options: .atomic)
+            }, afterQuarantine: {
+                try thirdWriter.write(to: file.url, options: .atomic)
+            })
+        }
+
+        #expect(try Data(contentsOf: file.url) == thirdWriter)
+        #expect(try Data(contentsOf: quarantine) == replacement)
+    }
+
+    @Test func repairedFileCreatedAfterQuarantineIsReloaded() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{broken".utf8).write(to: file.url)
+        let repaired = StorageData(snippets: [
+            Snippet(id: "repaired", title: "Repaired", content: "keep", createdAt: 1, updatedAt: 1),
+        ])
+        let repairedBytes = try StorageCoding.encode(repaired)
+        let quarantine = file.quarantineURL(now: 1234)
+
+        #expect(throws: StorageError.dataChangedSinceRead) {
+            try file.load(now: 1234, beforeQuarantine: {}, afterQuarantine: {
+                try repairedBytes.write(to: file.url, options: .atomic)
+            })
+        }
+
+        #expect(try Data(contentsOf: quarantine) == Data("{broken".utf8))
+        #expect(try file.read() == repaired)
+    }
+
     @Test func incompleteObjectIsQuarantinedNotRewritten() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)

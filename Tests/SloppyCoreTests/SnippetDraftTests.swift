@@ -84,6 +84,17 @@ import Testing
         #expect(repository.snippets.isEmpty)
     }
 
+    @Test func createRejectsUnfinishedConditionalWithoutWriting() {
+        var repository = SnippetRepository()
+        let draft = SnippetDraft(title: "Conditional", content: "{{#if show}}Included")
+
+        #expect(throws: SnippetDraftError.invalid(field: .content,
+            message: "Missing {{/if}} for {{#if show}}")) {
+            try draft.create(in: &repository, now: 1)
+        }
+        #expect(repository.snippets.isEmpty)
+    }
+
     @Test func updateKeepsUsageAndFlags() throws {
         var repository = SnippetRepository()
         var original = repository.addSnippet(title: "Old", content: "old", tags: ["x"], now: 1, id: "s")

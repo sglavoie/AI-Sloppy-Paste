@@ -70,6 +70,11 @@ struct Stats: Codable {
 }
 
 struct Options {
+    private static let optionNames: Set<String> = [
+        "--data", "--merge", "--replace", "--json", "--text", "--file", "--id",
+        "--tag", "--favorites", "--archived", "--needs-attention", "--sort",
+    ]
+
     var positional: [String] = []
     private(set) var usedFlags: Set<String> = []
     var dataURL = StorageFile.defaultURL
@@ -91,7 +96,9 @@ struct Options {
                 positional.append(contentsOf: iterator)
                 return
             case "--data":
-                guard let path = iterator.next() else { throw CommandError(description: "--data needs a path") }
+                guard let path = iterator.next(), !Self.optionNames.contains(path) else {
+                    throw CommandError(description: "--data needs a path")
+                }
                 dataURL = URL(filePath: (path as NSString).expandingTildeInPath)
             case "--merge", "--replace":
                 let requested: ImportMode = argument == "--merge" ? .merge : .replace
@@ -102,10 +109,14 @@ struct Options {
                 mode = requested
             case "--json": json = true
             case "--text", "--file", "--id":
-                guard let value = iterator.next() else { throw CommandError(description: "\(argument) needs a value") }
+                guard let value = iterator.next(), !Self.optionNames.contains(value) else {
+                    throw CommandError(description: "\(argument) needs a value")
+                }
                 if argument == "--text" { text = value } else if argument == "--file" { file = value } else { snippetID = value }
             case "--tag":
-                guard let tag = iterator.next() else { throw CommandError(description: "--tag needs a value") }
+                guard let tag = iterator.next(), !Self.optionNames.contains(tag) else {
+                    throw CommandError(description: "--tag needs a value")
+                }
                 filterOptions.selectedTag = .tag(tag)
             case "--favorites": filterOptions.showOnlyFavorites = true
             case "--archived": filterOptions.showArchivedSnippets = true

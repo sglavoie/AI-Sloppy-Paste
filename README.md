@@ -71,8 +71,9 @@ latest content.
 
 ⇧⌘D duplicates the selected snippet and opens the copy for editing. Snippet
 content is saved exactly as entered, including indentation and surrounding
-blank lines; titles and descriptions are trimmed. New Snippet from Clipboard
-suggests a title from the first nonempty line.
+blank lines; titles and descriptions are trimmed. A `{{#if ...}}` block must
+have a matching `{{/if}}` before saving, so its template syntax cannot be pasted by accident.
+New Snippet from Clipboard suggests a title from the first nonempty line.
 
 ⌘G opens a list of tags with their snippet counts. Type to narrow it, then ↵
 applies the selected tag as the filter chip, or "All Tags" clears it.

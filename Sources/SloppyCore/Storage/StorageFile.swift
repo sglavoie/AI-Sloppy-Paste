@@ -72,6 +72,15 @@ public struct StorageFile: Sendable, Hashable {
     /// `data.corrupt-<now>.json` and also gives empty data.
     /// A newer storage version throws without rewriting or quarantining the file.
     public func load(now: Int64) throws -> LoadResult {
+        try load(now: now, beforeQuarantine: {})
+    }
+
+    /// The hook lets tests place an uncoordinated replacement after the first
+    /// comparison and before the move. Production always passes an empty hook.
+    func load(
+        now: Int64, beforeQuarantine: () throws -> Void,
+        afterQuarantine: () throws -> Void = {}
+    ) throws -> LoadResult {
         let contents: Data
         do {
             contents = try Data(contentsOf: url)
@@ -87,10 +96,26 @@ public struct StorageFile: Sendable, Hashable {
             throw error
         } catch {
             // An editor may have repaired or replaced the file while decoding.
-            // Never quarantine bytes other than the ones that failed to decode.
+            // Check both before and after moving: an editor can still replace
+            // the file in the gap between the comparison and the move.
             try verifyUnchanged(Snapshot(data: .empty, bytes: contents))
+            try beforeQuarantine()
             let quarantined = quarantineURL(now: now)
             try FileManager.default.moveItem(at: url, to: quarantined)
+            try afterQuarantine()
+            guard (try? Data(contentsOf: quarantined)) == contents else {
+                // Restore only into a missing path. If another writer already
+                // created one, leave both versions intact for manual recovery.
+                guard renamex_np(quarantined.path, url.path, UInt32(RENAME_EXCL)) == 0 else {
+                    throw StorageError.concurrentWriteNeedsRecovery(quarantined)
+                }
+                throw StorageError.dataChangedSinceRead
+            }
+            // A writer may also have created a repaired file after the corrupt
+            // one moved. Let the caller reload it instead of showing empty data.
+            guard !FileManager.default.fileExists(atPath: url.path) else {
+                throw StorageError.dataChangedSinceRead
+            }
             return LoadResult(data: .empty, didMigrate: false, quarantinedURL: quarantined)
         }
 

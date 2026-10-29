@@ -47,6 +47,25 @@ import Testing
         #expect(Validation.validateContent("Use {{tone[Formal|Casual]|Casual}} here") == .valid)
     }
 
+    @Test func acceptsCompleteNestedConditionals() {
+        let content = "{{#if outer \"Show {{DATE}}?\"}}{{#if inner}}A{{#else}}B{{/else}}{{/if}}{{/if}}"
+        #expect(Validation.validateContent(content) == .valid)
+    }
+
+    @Test(arguments: [
+        ("{{#if show}}Included", "Missing {{/if}}"),
+        ("{{#if outer}}{{#if inner}}A{{/if}}", "Missing {{/if}}"),
+        ("Text {{/if}}", "Unexpected {{/if}}"),
+        ("Text {{#else}}", "Unexpected {{#else}}"),
+        ("{{#if show}}A{{#else}}B{{#else}}C{{/if}}", "Unexpected {{#else}}"),
+        ("Text {{/else}}", "Unexpected {{/else}}"),
+    ])
+    func rejectsIncompleteOrStrayConditional(content: String, message: String) {
+        let result = Validation.validateContent(content)
+        #expect(!result.isValid)
+        #expect(result.error?.contains(message) == true)
+    }
+
     @Test func rejectsFirstMalformedOrConflictingChoice() {
         let malformed = Validation.validateContent("{{first[A||B]}} {{second[X|X]}}")
         #expect(!malformed.isValid)

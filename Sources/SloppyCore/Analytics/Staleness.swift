@@ -32,7 +32,8 @@ public enum Staleness {
 
         var reason: String?
         if !snippet.isPinned {
-            if snippet.useCount == 0 && daysSinceCreation >= neverUsedAgeThresholdDays {
+            if snippet.useCount == 0 && snippet.lastUsedAt == nil
+                && daysSinceCreation >= neverUsedAgeThresholdDays {
                 reason = "Never used (created \(daysSinceCreation) days ago)"
             } else if let daysUnused, daysUnused >= staleThresholdDays {
                 reason = "Not used in \(daysUnused) days"

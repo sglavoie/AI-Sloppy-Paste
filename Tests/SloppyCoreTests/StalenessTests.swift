@@ -22,6 +22,23 @@ import Testing
         #expect(analytics.stalenessReason == nil)
     }
 
+    @Test(arguments: [0, 2, 89])
+    func lastUsePreventsNeverUsedClassificationWithZeroCount(daysAgo: Int64) {
+        // Legacy imports can omit useCount while retaining lastUsedAt.
+        let analytics = Staleness.analyze(
+            Self.snippet(createdDaysAgo: 200, lastUsedDaysAgo: daysAgo, useCount: 0), now: Self.now)
+        #expect(analytics.daysUnused == Int(daysAgo))
+        #expect(!analytics.isStale)
+        #expect(analytics.stalenessReason == nil)
+    }
+
+    @Test func oldLastUseWithZeroCountUsesInactivityThreshold() {
+        let analytics = Staleness.analyze(
+            Self.snippet(createdDaysAgo: 200, lastUsedDaysAgo: 90, useCount: 0), now: Self.now)
+        #expect(analytics.isStale)
+        #expect(analytics.stalenessReason == "Not used in 90 days")
+    }
+
     @Test func unusedNinetyDays() {
         let analytics = Staleness.analyze(Self.snippet(lastUsedDaysAgo: 100), now: Self.now)
         #expect(analytics.isStale)

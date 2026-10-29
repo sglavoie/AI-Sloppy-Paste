@@ -373,8 +373,9 @@ struct PlaceholderHistoryDetailView: View {
 
     private func submitEdit() {
         guard let oldValue = editing else { return }
-        let newValue = editText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !newValue.isEmpty else {
+        // Saved values can include significant indentation and line endings.
+        let newValue = editText
+        guard !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             editError = "Value cannot be empty"
             return
         }

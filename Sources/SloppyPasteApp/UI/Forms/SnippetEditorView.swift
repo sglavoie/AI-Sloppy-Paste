@@ -361,15 +361,17 @@ struct SnippetEditorView: View {
         navigator.pop()
     }
 
-    /// ⌘T: tags known across the store plus the draft's own; each toggle
-    /// rewrites the tags field. Tags the field cannot parse are left out.
+    /// ⌘T: tags known across the store plus the draft's own. Invalid draft
+    /// text stays in the editor until it is fixed, so a toggle cannot erase it.
     private func openTagPicker() {
-        let current = SnippetDraft.parseTags(draft.tagsText).tags
-        tagPicker = TagPickerModel(
-            title: "Edit Tags", initialTags: current,
-            knownTags: SnippetRepository(data: store.data).tags, toasts: toasts
-        ) { tags in
-            draft.tagsText = tags.joined(separator: ", ")
+        guard let session else { return }
+        do {
+            tagPicker = try TagPickerModel(
+                draftSession: session, knownTags: SnippetRepository(data: store.data).tags, toasts: toasts)
+        } catch {
+            showAllErrors = true
+            focusedField = .tags
+            toasts.failure("Cannot edit tags yet", message: error.localizedDescription)
         }
     }
 

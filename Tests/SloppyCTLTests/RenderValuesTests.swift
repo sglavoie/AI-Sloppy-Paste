@@ -44,4 +44,13 @@ import SloppyCore
         let completed = try renderValues(["feature=true", "name=Ada"], placeholders: placeholders)
         #expect(missingRequiredKeys(in: content, placeholders: placeholders, values: completed).isEmpty)
     }
+
+    @Test(arguments: ["", " ", "\t\n"])
+    func warnsForBlankRequiredAssignmentInActiveBranch(value: String) throws {
+        let content = "{{#if feature}}{{name}}{{#else}}{{recipient}}{{/if}} {{optional|default}}"
+        let placeholders = PlaceholderSyntaxParser.extractPlaceholders(content)
+        let values = try renderValues(["feature=true", "name=\(value)", "optional="], placeholders: placeholders)
+
+        #expect(missingRequiredKeys(in: content, placeholders: placeholders, values: values) == ["name"])
+    }
 }

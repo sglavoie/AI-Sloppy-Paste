@@ -47,6 +47,16 @@ final class TagPickerModel {
         self.commit = commit
     }
 
+    /// A draft with invalid tag text cannot be rewritten from the picker's
+    /// normalized selection without dropping the unfinished text.
+    convenience init(draftSession: SnippetEditorSession, knownTags: [String], toasts: ToastCenter) throws {
+        let parsed = SnippetDraft.parseTags(draftSession.draft.tagsText)
+        if let error = parsed.error { throw DraftTagPickerError.invalidTags(error) }
+        self.init(title: "Edit Tags", initialTags: parsed.tags, knownTags: knownTags, toasts: toasts) { tags in
+            draftSession.draft.tagsText = tags.joined(separator: ", ")
+        }
+    }
+
     convenience init(snippet: Snippet, store: SnippetStore, toasts: ToastCenter) {
         var expectedTags = TagNormalization.removeRedundantParents(snippet.tags)
         self.init(
@@ -184,6 +194,16 @@ final class TagPickerModel {
                 self?.activate()
             },
         ]
+    }
+}
+
+private enum DraftTagPickerError: LocalizedError {
+    case invalidTags(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidTags(let error): "Fix the unfinished tag before opening the tag picker. \(error)"
+        }
     }
 }
 

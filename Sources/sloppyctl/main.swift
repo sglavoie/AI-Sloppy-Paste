@@ -203,11 +203,14 @@ func renderValues(_ assignments: [String], placeholders: [Placeholder]) throws -
     return values
 }
 
-/// Missing required fields only matter when their conditional branch renders.
+/// Missing or blank required fields only matter when their conditional branch renders.
 func missingRequiredKeys(in content: String, placeholders: [Placeholder], values: [String: String]) -> [String] {
     let selected = ConditionalBlocks.process(content, values: values)
     let activeKeys = Set(PlaceholderSyntaxParser.parse(selected).occurrences.map(\.key))
-    return placeholders.filter { $0.isRequired && activeKeys.contains($0.key) && values[$0.key] == nil }
+    return placeholders.filter {
+        $0.isRequired && activeKeys.contains($0.key)
+            && (values[$0.key]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    }
         .map(\.key)
 }
 

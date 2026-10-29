@@ -335,6 +335,8 @@ swift run sloppyctl --help
 For omitted choice values, `render` uses the authored default or the first
 choice, matching the form. Optional choice wrappers stay disabled without a
 nonempty default; an explicit `key=value` overrides that initial state.
+Blank values for required placeholders in the selected conditional branch
+produce a warning on stderr, even when supplied explicitly as `key=`.
 
 Every command takes `--data <path>` to work on a file other than the live one.
 `stats`, `search`, and `render --id` only read that file. They never rewrite,

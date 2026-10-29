@@ -6,6 +6,28 @@ import SloppyCore
 @Suite @MainActor struct TagPickerModelTests {
     let directory = FileManager.default.temporaryDirectory.appending(path: "TagPickerTests-\(UUID().uuidString)")
 
+    @Test func invalidDraftTagsCannotBeDroppedByPickerToggle() throws {
+        var draft = SnippetDraft(title: "Draft", content: "Text")
+        draft.tagsText = "work, project/, personal"
+        let session = SnippetEditorSession(mode: .new, draft: draft)
+
+        #expect(throws: (any Error).self) {
+            _ = try TagPickerModel(draftSession: session, knownTags: ["work", "personal"], toasts: ToastCenter())
+        }
+        #expect(session.draft.tagsText == "work, project/, personal")
+    }
+
+    @Test func validDraftTagsStillUpdateThroughPicker() throws {
+        var draft = SnippetDraft(title: "Draft", content: "Text")
+        draft.tagsText = "work"
+        let session = SnippetEditorSession(mode: .new, draft: draft)
+        let model = try TagPickerModel(draftSession: session, knownTags: ["work", "personal"], toasts: ToastCenter())
+
+        model.toggle("personal")
+
+        #expect(session.draft.tagsText == "personal, work")
+    }
+
     @Test(arguments: [["work", "external"], [String]()])
     func externalTagEditsAreNotOverwritten(tags: [String]) throws {
         defer { try? FileManager.default.removeItem(at: directory) }

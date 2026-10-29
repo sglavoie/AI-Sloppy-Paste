@@ -90,7 +90,8 @@ struct SettingsView: View {
 
             Section("Pasting") {
                 LabeledContent("Delay before ⌘V") {
-                    Stepper("\(pasteDelay) ms", value: $pasteDelay, in: 0...1000, step: 10)
+                    Stepper("\(pasteDelay) ms", value: $pasteDelay,
+                            in: 0...Paster.maximumDelayMilliseconds, step: 10)
                 }
                 Text("Raise it if some apps receive the paste before they have focus again.")
                     .font(.caption).foregroundStyle(.secondary)

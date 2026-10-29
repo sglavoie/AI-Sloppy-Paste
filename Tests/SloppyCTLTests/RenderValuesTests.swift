@@ -30,4 +30,18 @@ import SloppyCore
             try renderValues(["name"], placeholders: [])
         }
     }
+
+    @Test func onlyWarnsForRequiredValuesInSelectedBranches() throws {
+        let content = "{{#if feature}}Hello {{name}}{{#else}}Bye {{recipient}}{{/if}}"
+        let placeholders = PlaceholderSyntaxParser.extractPlaceholders(content)
+
+        let withoutFeature = try renderValues([], placeholders: placeholders)
+        #expect(missingRequiredKeys(in: content, placeholders: placeholders, values: withoutFeature) == ["recipient"])
+
+        let withFeature = try renderValues(["feature=true"], placeholders: placeholders)
+        #expect(missingRequiredKeys(in: content, placeholders: placeholders, values: withFeature) == ["name"])
+
+        let completed = try renderValues(["feature=true", "name=Ada"], placeholders: placeholders)
+        #expect(missingRequiredKeys(in: content, placeholders: placeholders, values: completed).isEmpty)
+    }
 }

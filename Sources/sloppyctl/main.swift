@@ -198,11 +198,17 @@ func renderValues(_ assignments: [String], placeholders: [Placeholder]) throws -
             values[placeholder.key] = state.enabledOptional == false ? "" : state.formValue
         } else if let defaultValue = placeholder.defaultValue {
             values[placeholder.key] = defaultValue
-        } else if placeholder.isRequired {
-            FileHandle.standardError.write(Data("warning: no value for required placeholder \(placeholder.key)\n".utf8))
         }
     }
     return values
+}
+
+/// Missing required fields only matter when their conditional branch renders.
+func missingRequiredKeys(in content: String, placeholders: [Placeholder], values: [String: String]) -> [String] {
+    let selected = ConditionalBlocks.process(content, values: values)
+    let activeKeys = Set(PlaceholderSyntaxParser.parse(selected).occurrences.map(\.key))
+    return placeholders.filter { $0.isRequired && activeKeys.contains($0.key) && values[$0.key] == nil }
+        .map(\.key)
 }
 
 func renderContent(_ options: Options, file: StorageFile) throws -> String {
@@ -252,8 +258,12 @@ func run(_ arguments: [String]) throws {
     case "render":
         let content = try renderContent(options, file: file)
         let now = nowMs()
-        let placeholders = PlaceholderSyntaxParser.extractPlaceholders(SystemPlaceholders.process(content, now: now))
+        let processed = SystemPlaceholders.process(content, now: now)
+        let placeholders = PlaceholderSyntaxParser.extractPlaceholders(processed)
         let values = try renderValues(options.positional, placeholders: placeholders)
+        for key in missingRequiredKeys(in: processed, placeholders: placeholders, values: values) {
+            FileHandle.standardError.write(Data("warning: no value for required placeholder \(key)\n".utf8))
+        }
         print(PlaceholderRenderer.render(content, values: values, now: now), terminator: "")
     case "search":
         let list = SnippetListPipeline.build(

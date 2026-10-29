@@ -8,6 +8,7 @@ import SloppyCore
 final class Paster {
     static let delayDefaultsKey = "paste.delayMilliseconds"
     static let defaultDelayMilliseconds = 60
+    static let maximumDelayMilliseconds = 1000
 
     private let accessibility: AccessibilityPermission
 
@@ -18,7 +19,11 @@ final class Paster {
     /// Time for the target app to take key focus back before ⌘V; some apps need more.
     var delayMilliseconds: Int {
         let stored = UserDefaults.standard.object(forKey: Self.delayDefaultsKey) as? Int
-        return max(0, stored ?? Self.defaultDelayMilliseconds)
+        return Self.sanitizedDelayMilliseconds(stored)
+    }
+
+    static func sanitizedDelayMilliseconds(_ stored: Int?) -> Int {
+        min(max(0, stored ?? defaultDelayMilliseconds), maximumDelayMilliseconds)
     }
 
     /// Copies `text`, then pastes it into `target` unless Accessibility is

@@ -8,6 +8,9 @@ A global hotkey (⌃⌥⌘V by default) opens a Spotlight-style picker. Choosing
 snippet pastes it into the app that was frontmost. The app lives in the menu bar
 and has no Dock icon.
 
+Choose **About** from the menu bar dropdown to see the app
+version and copyright information.
+
 ## Install
 
 On macOS 15 or later, install the signed and notarized release with Homebrew:

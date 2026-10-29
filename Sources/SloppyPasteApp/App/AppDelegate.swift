@@ -1,4 +1,5 @@
 import AppKit
+import SloppyCore
 import SwiftUI
 
 @MainActor
@@ -70,6 +71,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.show()
     }
 
+    @objc private func openAbout(_ sender: Any?) {
+        let previousApp = NSWorkspace.shared.frontmostApplication
+        picker.hide()
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "AI Sloppy Paste",
+            .applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
+                as? String ?? SloppyCore.version,
+            NSApplication.AboutPanelOptionKey(rawValue: "Copyright"):
+                Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright")
+                as? String ?? "Copyright © 2018–2026 Sébastien Lavoie",
+        ])
+        // Accessory apps need activation after the window becomes visible.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            if let previousApp, !previousApp.isTerminated,
+               previousApp.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+                NSRunningApplication.current.activate(from: previousApp)
+            } else {
+                NSRunningApplication.current.activate()
+            }
+        }
+    }
+
     @objc private func openAccessibilitySettings(_ sender: Any?) {
         accessibility.openSystemSettings()
     }
@@ -137,6 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.accessibilityItem = accessibilityItem
         updateAccessibilityItem()
         menu.addItem(.separator())
+        addItems(to: menu, [("About", #selector(openAbout(_:)))])
         menu.addItem(
             NSMenuItem(
                 title: "Quit Sloppy Paste",

@@ -49,6 +49,17 @@ public struct LegacyStorageData: Decodable, Sendable, Hashable {
             placeholderHistory = current.placeholderHistory
             return
         }
+        if let exportVersion = try? c.decode(String.self, forKey: .version),
+            exportVersion.split(separator: ".").first.flatMap({ Int($0) }) == StorageConstants.currentVersion {
+            // Read-only CLI commands also accept export files. Apply the same
+            // field checks as import, before legacy decoding can discard an
+            // invalid field or a startup migration can save its default back.
+            do {
+                _ = try c.decode([CurrentImportSnippetShape].self, forKey: .snippets)
+            } catch let error as DecodingError {
+                throw StorageError.invalidCurrentStorageData(Self.fieldPath(in: error))
+            }
+        }
         snippets = try c.decode([LegacySnippet].self, forKey: .snippets)
         tags = (try? c.decodeIfPresent([LossyString].self, forKey: .tags))?.compactMap(\.value) ?? []
         placeholderHistory = try c.decodeIfPresent(PlaceholderHistory.self, forKey: .placeholderHistory)

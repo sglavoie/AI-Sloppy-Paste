@@ -103,23 +103,19 @@ final class Navigator {
                 SavedDraft(mode: $0.mode, original: $0.original, draft: $0.draft)
             })
             let data = try JSONEncoder().encode(saved)
-            try StorageFile(url: draftURL).withExclusiveLock {
-                guard try Self.readDraftBytes(at: draftURL) == lastSavedDraftBytes else {
-                    throw DraftFileChanged()
-                }
-                try data.write(to: draftURL, options: .atomic)
+            let file = StorageFile(url: draftURL)
+            try file.withExclusiveLock {
+                try file.replaceContents(with: data, ifUnchangedFrom: lastSavedDraftBytes)
                 lastSavedDraftBytes = data
             }
             draftRecoveryError = nil
-        } catch is DraftFileChanged {
+        } catch StorageError.dataChangedSinceRead, StorageError.dataFileDisappeared {
             canWriteDrafts = false
-            draftRecoveryError = "Drafts changed in another copy of AI Sloppy Paste. The file at \(draftURL.path) is preserved. Keep this app open and copy your unsaved edits before restarting."
+            draftRecoveryError = "Drafts changed in another copy of AI Sloppy Paste or an external editor. The file at \(draftURL.path) is preserved. Keep this app open and copy your unsaved edits before restarting."
         } catch {
             draftRecoveryError = "Cannot save drafts for recovery: \(error.localizedDescription) Keep the app open until this is resolved."
         }
     }
-
-    private struct DraftFileChanged: Error {}
 
     private static func readDraftBytes(at url: URL) throws -> Data? {
         do { return try Data(contentsOf: url) }

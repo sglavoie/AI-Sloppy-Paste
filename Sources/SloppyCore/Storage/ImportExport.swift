@@ -48,7 +48,7 @@ public enum ImportValidationError: Error, Sendable, Equatable, LocalizedError {
 
 /// Checks the type of every present current-version snippet field. Legacy
 /// files still use `LegacySnippet`'s permissive decoding and backfilling.
-private struct CurrentImportSnippetShape: Decodable {
+struct CurrentImportSnippetShape: Decodable {
     private enum CodingKeys: String, CodingKey {
         case id, title, content, description, tags, category, createdAt, updatedAt
         case lastUsedAt, useCount, isFavorite, isArchived, isPinned

@@ -112,6 +112,24 @@ import SloppyCore
         #expect(Navigator(draftURL: url).pendingEditor == nil)
     }
 
+    @Test func removedRecoveryFileStopsDraftWritesAndPreservesInMemoryEdits() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appending(path: "drafts.json")
+        let navigator = Navigator(draftURL: url)
+        let session = navigator.startEditor(.new, draft: SnippetDraft())
+        session.draft.title = "Unfinished"
+        try FileManager.default.removeItem(at: url)
+
+        session.draft.content = "Keep my local edit"
+        #expect(navigator.draftRecoveryError?.contains("copy your unsaved edits") == true)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        #expect(navigator.pendingEditor === session)
+        session.draft.content = "Keep subsequent edits too"
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        #expect(session.draft.content == "Keep subsequent edits too")
+    }
+
     @Test func reopeningPickerKeepsDirtyEditorAndStartsAtRoot() {
         let navigator = Navigator()
         navigator.push(.editor(.new))

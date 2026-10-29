@@ -65,9 +65,9 @@ including incomplete tags and surrounding whitespace, is preserved as typed.
 If the recovery file cannot be read, it is left untouched and the picker shows
 a warning; new drafts stay in memory until the file is repaired and the app
 restarted. A failed draft write also shows a warning to keep the app open. If
-another copy of AI Sloppy Paste changes `drafts.json`, this copy stops saving
-drafts and warns you to copy its unsaved edits before restarting. The other
-copy's recovery file is left untouched.
+another copy of AI Sloppy Paste or an external editor changes `drafts.json`,
+this copy stops saving drafts and warns you to copy its unsaved edits before
+restarting. The external recovery file is left untouched.
 
 If a snippet's title, content, description, or tags changed while its draft was
 open or in recovery, saving stops and preserves both versions. Copy your draft
@@ -379,6 +379,9 @@ Every command takes `--data <path>` to work on a file other than the live one.
 `stats`, `search`, and `render --id` only read that file. They never rewrite,
 create, or quarantine it; malformed input reports an error. `import` retains
 the store's migration, backup, and quarantine behavior.
+Current-version exports receive the same snippet field checks when read with
+`--data` as when imported; malformed fields are rejected instead of replaced
+with defaults.
 
 ## Troubleshooting
 

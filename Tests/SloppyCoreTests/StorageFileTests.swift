@@ -129,6 +129,26 @@ import Testing
         #expect(try Data(contentsOf: file.url) == external)
     }
 
+    @Test(arguments: [false, true])
+    func draftBytesPreserveACompetingWriteDuringCommit(fileAlreadyExists: Bool) throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let drafts = StorageFile(url: file.url.deletingLastPathComponent().appending(path: "drafts.json"))
+        let original = Data(#"{"version":1,"drafts":[]}"#.utf8)
+        let external = Data(#"{"version":1,"drafts":[{"content":"External unsaved edit"}]}"#.utf8)
+        let local = Data(#"{"version":1,"drafts":[{"content":"Local unsaved edit"}]}"#.utf8)
+        try drafts.withExclusiveLock {
+            if fileAlreadyExists { try original.write(to: drafts.url) }
+            #expect(throws: StorageError.dataChangedSinceRead) {
+                try drafts.replaceContents(with: local, ifUnchangedFrom: fileAlreadyExists ? original : nil) {
+                    try external.write(to: drafts.url, options: .atomic)
+                }
+            }
+        }
+        #expect(try Data(contentsOf: drafts.url) == external)
+        #expect(try Set(FileManager.default.contentsOfDirectory(atPath: drafts.url.deletingLastPathComponent().path))
+            == ["drafts.json", "drafts.json.lock"])
+    }
+
     @Test func sidecarLockSerializesConcurrentTransactions() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let firstEntered = DispatchSemaphore(value: 0)
@@ -186,10 +206,11 @@ import Testing
         #expect(try FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path) == ["data.json"])
     }
 
-    @Test func malformedCurrentFileIsNotQuarantinedOrChangedByImport() throws {
+    @Test(arguments: ["7", #""7.0.0""#, #""7""#])
+    func malformedCurrentFileIsNotQuarantinedOrChangedByImport(version: String) throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: file.url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let malformed = Data(#"{"version":7,"snippets":[{"id":"a","title":"A","content":"x","description":"","tags":"work","createdAt":1,"updatedAt":1,"useCount":3,"isFavorite":false,"isArchived":false,"isPinned":false}],"tags":[],"placeholderHistory":{}}"#.utf8)
+        let malformed = Data(#"{"version":\#(version),"snippets":[{"id":"a","title":"A","content":"x","description":"","tags":"work","createdAt":1,"updatedAt":1,"useCount":3,"isFavorite":false,"isArchived":false,"isPinned":false}],"tags":[],"placeholderHistory":{}}"#.utf8)
         try malformed.write(to: file.url)
 
         #expect(throws: StorageError.invalidCurrentStorageData("snippets[0].tags")) { try file.load(now: 1) }

@@ -88,6 +88,20 @@ import Testing
         #expect(result.data.version == StorageConstants.currentVersion)
     }
 
+    @Test(arguments: ["7", "7.0", "7.0.0"], ["tags", "useCount", "isFavorite"])
+    func currentExportsRejectMalformedFields(version: String, field: String) {
+        let json = Data(#"{"version":"\#(version)","snippets":[{"id":"a","title":"A","content":"x","\#(field)":"invalid"}]}"#.utf8)
+        #expect(throws: StorageError.invalidCurrentStorageData("snippets[0].\(field)")) {
+            try StorageMigrations.migrate(json: json)
+        }
+    }
+
+    @Test func currentExportsStillAllowMissingOptionalFields() throws {
+        let json = Data(#"{"version":"7.0.0","snippets":[{"id":"a","title":"A","content":"x"}]}"#.utf8)
+        let result = try StorageMigrations.migrate(json: json)
+        #expect(result.data.snippets == [Snippet(id: "a", title: "A", content: "x", createdAt: 0, updatedAt: 0)])
+    }
+
     @Test func unversionedDocumentWithSnippetsIsMigrated() throws {
         let result = try StorageMigrations.migrate(json: Data(#"{"snippets":[]}"#.utf8))
         #expect(result.didMigrate)

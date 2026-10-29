@@ -160,18 +160,32 @@ public struct StorageFile: Sendable, Hashable {
         beforeCommit: () throws -> Void
     ) throws {
         try data.validateUniqueSnippetIDs()
-        try verifyUnchanged(snapshot)
+        try replaceContents(with: StorageCoding.encode(data), ifUnchangedFrom: snapshot.bytes, beforeCommit: beforeCommit)
+    }
+
+    /// Atomically replaces arbitrary file bytes, preserving a competing writer's
+    /// version on conflict. Used for draft recovery as well as snippet storage.
+    /// Nil expected bytes require a missing file. Callers coordinate their full
+    /// read-modify-write transaction with `withExclusiveLock`.
+    public func replaceContents(with bytes: Data, ifUnchangedFrom expectedBytes: Data?) throws {
+        try replaceContents(with: bytes, ifUnchangedFrom: expectedBytes, beforeCommit: {})
+    }
+
+    func replaceContents(
+        with preparedBytes: Data, ifUnchangedFrom expectedBytes: Data?,
+        beforeCommit: () throws -> Void
+    ) throws {
+        try verifyUnchanged(expectedBytes)
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let temporary = url.deletingLastPathComponent()
             .appending(path: ".\(url.lastPathComponent).pending-\(UUID().uuidString)")
-        let preparedBytes = try StorageCoding.encode(data)
         try preparedBytes.write(to: temporary, options: .atomic)
         var removeTemporary = true
         defer { if removeTemporary { try? FileManager.default.removeItem(at: temporary) } }
 
         try beforeCommit()
-        if snapshot.bytes == nil {
+        if expectedBytes == nil {
             // A file created while the new bytes were prepared must not be
             // replaced. RENAME_EXCL checks this at the rename itself.
             guard renamex_np(temporary.path, url.path, UInt32(RENAME_EXCL)) == 0 else {
@@ -188,7 +202,7 @@ public struct StorageFile: Sendable, Hashable {
             if errno == ENOENT { throw StorageError.dataFileDisappeared }
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
-        guard (try? Data(contentsOf: temporary)) == snapshot.bytes else {
+        guard (try? Data(contentsOf: temporary)) == expectedBytes else {
             // Swap back instead of replacing the competing writer's bytes.
             // Even if a third writer replaced `url` meanwhile, the second
             // swap preserves that version at `temporary`.
@@ -207,13 +221,17 @@ public struct StorageFile: Sendable, Hashable {
     }
 
     private func verifyUnchanged(_ snapshot: Snapshot) throws {
+        try verifyUnchanged(snapshot.bytes)
+    }
+
+    private func verifyUnchanged(_ expectedBytes: Data?) throws {
         let current: Data?
         do {
             current = try Data(contentsOf: url)
         } catch CocoaError.fileReadNoSuchFile {
             current = nil
         }
-        guard current == snapshot.bytes else { throw StorageError.dataChangedSinceRead }
+        guard current == expectedBytes else { throw StorageError.dataChangedSinceRead }
     }
 
     /// Copies the current file to `backupURL`, replacing an older backup.

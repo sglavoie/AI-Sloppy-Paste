@@ -50,6 +50,7 @@ import Testing
     @Test func acceptsCompleteNestedConditionals() {
         let content = "{{#if outer \"Show {{DATE}}?\"}}{{#if inner}}A{{#else}}B{{/else}}{{/if}}{{/if}}"
         #expect(Validation.validateContent(content) == .valid)
+        #expect(Validation.validateContent("{{#if show}}Yes{{#else}}No{{/else}}\r\n  {{/if}}") == .valid)
     }
 
     @Test(arguments: [
@@ -67,6 +68,30 @@ import Testing
     }
 
     @Test(arguments: [
+        "{{#if show}}Yes{{#else}}No{{/else}}{{/else}}{{/if}}",
+        "{{#if show}}Yes{{#else}}No{{/else}}More{{/if}}",
+        "{{#if show}}Yes{{#else}}No{{/else}}{{name}}{{/if}}",
+        "{{#if show}}Yes{{#else}}No{{/else}}{{#if nested}}More{{/if}}{{/if}}",
+    ])
+    func rejectsContentAfterAnElseCloser(content: String) {
+        #expect(!Validation.validateContent(content).isValid)
+    }
+
+    @Test(arguments: [
+        "{{#if show", "{{#if", "Text {{#else", "Text {{/else", "Text {{/if",
+        "{{#if show}body", "{{#if show}}Yes{{/if", "{{#if show}}Yes{{/if}} {{#if other",
+    ])
+    func rejectsUnterminatedConditionalTokens(content: String) {
+        #expect(!Validation.validateContent(content).isValid)
+    }
+
+    @Test func conditionalExamplesInsideExpressionsStayLiteral() {
+        #expect(Validation.validateContent(#"{{#if show "Example {{#if unfinished"}}Yes{{/if}}"#).isValid)
+        #expect(Validation.validateContent("{{name|Example {{#if unfinished}}") == .valid)
+        #expect(Validation.validateContent("An unfinished ordinary placeholder {{name") == .valid)
+    }
+
+    @Test(arguments: [
         "{{#if}}Yes{{/if}}",
         "{{#if }}Yes{{/if}}",
         "{{#if +}}Yes{{#else}}No{{/if}}",
@@ -76,6 +101,10 @@ import Testing
         "Text {{ /if }}",
         "Text {{ #else }}",
         "Text {{ /else }}",
+        "Text {{/if unexpected}}",
+        "Text {{#else unexpected}}",
+        "Text {{/else unexpected}}",
+        "Text {{/if {{name}}",
     ])
     func rejectsMalformedConditionalSyntax(content: String) {
         let parsed = PlaceholderSyntaxParser.parse(content)

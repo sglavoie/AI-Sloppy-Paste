@@ -30,6 +30,15 @@ import Testing
         }
     }
 
+    @Test func unterminatedConditionalDiagnosticUsesUTF16Offsets() throws {
+        let text = "👩‍💻 {{name}}\u{301} Text {{#if unfinished"
+        let diagnostic = try #require(PlaceholderSyntaxParser.parse(text).diagnostics.first)
+        #expect(diagnostic.message.contains("Unterminated conditional"))
+        let range = NSRange(location: diagnostic.range.start,
+            length: diagnostic.range.end - diagnostic.range.start)
+        #expect((text as NSString).substring(with: range) == "{{#if unfinished")
+    }
+
     @Test(arguments: ["{{name ", "{{#if "])
     func longUnfinishedContentStillFindsLaterValidExpressions(opener: String) {
         let unfinished = String(repeating: opener, count: 4_000)

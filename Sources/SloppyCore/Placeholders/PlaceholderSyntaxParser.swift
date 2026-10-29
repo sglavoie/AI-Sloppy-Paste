@@ -44,8 +44,6 @@ public struct PlaceholderSyntaxResult: Sendable, Hashable {
 }
 
 public enum PlaceholderSyntaxParser {
-    private static let controlExpressions: Set<String> = ["#else", "/else", "/if"]
-
     /// Parses all user-value placeholder syntax in one pass.
     ///
     /// Invalid authored-choice expressions receive diagnostics but deliberately
@@ -55,11 +53,24 @@ public enum PlaceholderSyntaxParser {
     public static func parse(_ text: String) -> PlaceholderSyntaxResult {
         var occurrences: [ParsedValuePlaceholderOccurrence] = []
         var diagnostics: [PlaceholderSyntaxDiagnostic] = []
-        var openBlocks: [(expression: ScannedExpression, hasElse: Bool)] = []
+        var openBlocks: [(expression: ScannedExpression, hasElse: Bool, elseClosed: Bool)] = []
+        var cursor = text.startIndex
+        var cursorOffset = 0
         let conditionalOpen = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}/.matchingSemantics(.unicodeScalar)
         let validConditionalOpen = /\{\{#if\s+\+?[^\s}"]+(?:\s+"[^"]*")?\s*\}\}/.matchingSemantics(.unicodeScalar)
 
         for expression in scanExpressions(text) {
+            let gap = text[cursor..<expression.indices.lowerBound]
+            if let diagnostic = unterminatedConditional(in: gap, offset: cursorOffset) {
+                diagnostics.append(diagnostic)
+            }
+            if openBlocks.last?.elseClosed == true,
+                !String(gap).trimmed.isEmpty || expression.raw != "{{/if}}" {
+                diagnostics.append(conditionalDiagnostic(expression,
+                    "Unexpected content after {{/else}}: only whitespace and {{/if}} may follow"))
+            }
+            cursor = expression.indices.upperBound
+            cursorOffset = expression.range.end
             let trimmed = expression.content.trimmed
             if let match = expression.raw.wholeMatch(of: conditionalOpen) {
                 // Rendering accepts legacy headers more broadly than the form
@@ -70,7 +81,7 @@ public enum PlaceholderSyntaxParser {
                     diagnostics.append(conditionalDiagnostic(expression,
                         "Invalid conditional header \(expression.raw): use {{#if key}} or {{#if key \"Label\"}}"))
                 }
-                openBlocks.append((expression, false))
+                openBlocks.append((expression, false, false))
                 continue
             }
             if expression.raw == "{{#else}}" {
@@ -82,7 +93,10 @@ public enum PlaceholderSyntaxParser {
                 continue
             }
             if expression.raw == "{{/else}}" {
-                if openBlocks.last?.hasElse != true {
+                if let index = openBlocks.indices.last, openBlocks[index].hasElse,
+                    !openBlocks[index].elseClosed {
+                    openBlocks[index].elseClosed = true
+                } else {
                     diagnostics.append(conditionalDiagnostic(expression, "Unexpected {{/else}}"))
                 }
                 continue
@@ -93,8 +107,7 @@ public enum PlaceholderSyntaxParser {
                 }
                 continue
             }
-            if trimmed == "#if" || trimmed.contains(/^#if\s/.matchingSemantics(.unicodeScalar))
-                || controlExpressions.contains(trimmed) {
+            if trimmed.contains(/^(?:#if|#else|\/if|\/else)(?:\s|$)/.matchingSemantics(.unicodeScalar)) {
                 diagnostics.append(conditionalDiagnostic(expression, "Invalid conditional syntax in \(expression.raw)"))
                 continue
             }
@@ -131,6 +144,9 @@ public enum PlaceholderSyntaxParser {
             if !occurrence.key.isEmpty { occurrences.append(occurrence) }
         }
 
+        if let diagnostic = unterminatedConditional(in: text[cursor...], offset: cursorOffset) {
+            diagnostics.append(diagnostic)
+        }
         diagnostics += openBlocks.map { conditionalDiagnostic($0.expression, "Missing {{/if}} for \($0.expression.raw)") }
         diagnostics += PlaceholderAggregator.findChoiceConflicts(occurrences)
         diagnostics = diagnostics.stableSorted {
@@ -151,6 +167,21 @@ public enum PlaceholderSyntaxParser {
 
     private static func conditionalDiagnostic(_ expression: ScannedExpression, _ message: String) -> PlaceholderSyntaxDiagnostic {
         PlaceholderSyntaxDiagnostic(range: expression.range, expression: expression.raw, message: message)
+    }
+
+    /// Complete expressions have already been consumed, including quoted
+    /// examples. Check only the gaps so an unfinished control token cannot
+    /// bypass editor validation and later be pasted verbatim.
+    private static func unterminatedConditional(in text: Substring, offset: Int) -> PlaceholderSyntaxDiagnostic? {
+        let opener = /\{\{\s*(?:#if|#else|\/if|\/else)(?=\s|\}|$)/.matchingSemantics(.unicodeScalar)
+        guard let match = text.firstMatch(of: opener) else { return nil }
+        let raw = String(text[match.range.lowerBound...])
+        let start = offset + text[..<match.range.lowerBound].utf16.count
+        return PlaceholderSyntaxDiagnostic(
+            range: PlaceholderSourceRange(start: start, end: offset + text.utf16.count),
+            expression: raw,
+            message: "Unterminated conditional syntax in \(raw): complete the tag with }}"
+        )
     }
 
     struct ScannedExpression {

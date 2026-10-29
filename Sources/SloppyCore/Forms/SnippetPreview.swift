@@ -9,7 +9,7 @@ public enum SnippetPreview {
     /// conditional blocks, then value placeholders, capped at 500 UTF-16 units
     /// (without splitting a character).
     public static func build(_ content: String, now: Int64, timeZone: TimeZone = .current) -> String {
-        guard content.contains("{{") else { return "" }
+        guard content.contains(/\{\{/.matchingSemantics(.unicodeScalar)) else { return "" }
 
         let withSystems = previewSystemPlaceholders(content, now: now, timeZone: timeZone)
         let withConditionals = previewConditionalBlocks(withSystems)

@@ -126,6 +126,21 @@ import Testing
         #expect(repo.snippets.count == 2)
     }
 
+    @Test(arguments: [193, 194, 195, 200])
+    func duplicateKeepsLongTitlesValid(length: Int) throws {
+        var repo = SnippetRepository()
+        let title = String(repeating: "👩‍💻", count: length)
+        let original = repo.addSnippet(title: title, content: "Content", now: 1, id: "original")
+
+        let copy = try repo.duplicateSnippet(id: original.id, now: 2, newID: "copy")
+
+        #expect(Validation.validateTitle(copy.title).isValid)
+        #expect(copy.title.hasSuffix(" (Copy)"))
+        #expect(copy.title == String(title.prefix(min(length, 193))) + " (Copy)")
+        #expect(repo.snippet(id: original.id)?.title == title)
+        #expect(SnippetDraft(snippet: copy).errors.isEmpty)
+    }
+
     @Test func toggleFlipsFlagAndReturnsNewValue() throws {
         var repo = SnippetRepository()
         let snippet = repo.addSnippet(title: "T", content: "C", now: 1)

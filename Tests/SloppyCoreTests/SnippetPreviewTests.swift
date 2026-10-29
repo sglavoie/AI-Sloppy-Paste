@@ -15,6 +15,15 @@ import Testing
         #expect(preview("Plain content") == "")
     }
 
+    @Test(arguments: ["\u{301}", "\u{FE0F}"])
+    func leadingCombiningScalarsDoNotHidePlaceholders(mark: String) {
+        let key = mark + "name"
+        let content = "Hello {{" + key + "}}"
+        #expect(PlaceholderSyntaxParser.extractPlaceholders(content).map(\.key) == [key])
+        #expect(preview(content) == "Hello ⟨" + key + "⟩")
+        #expect(PlaceholderRenderer.render(content, values: [key: "Ada"], now: Self.now) == "Hello Ada")
+    }
+
     @Test func defaultsNoSaveLabelsAndWrappers() {
         #expect(preview("{{name}} {{role|Editor}} {{!$:amount: USD|10}}")
             == "⟨name⟩ ⟨role = \"Editor\"⟩ ⟨!$amount USD = \"10\"⟩")

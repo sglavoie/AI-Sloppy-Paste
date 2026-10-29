@@ -90,7 +90,9 @@ public struct SnippetRepository: Sendable, Hashable {
     public mutating func duplicateSnippet(id: String, now: Int64, newID: String? = nil) throws -> Snippet {
         var copy = data.snippets[try index(of: id)]
         copy.id = newID ?? SnippetID.make(now: now)
-        copy.title += " (Copy)"
+        // Leave room for the suffix so a valid title stays editable after duplication.
+        let suffix = " (Copy)"
+        copy.title = String(copy.title.prefix(ValidationLimits.titleMaxLength - suffix.count)) + suffix
         copy.createdAt = now
         copy.updatedAt = now
         copy.lastUsedAt = nil

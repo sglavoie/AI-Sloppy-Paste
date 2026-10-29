@@ -66,6 +66,30 @@ import Testing
         #expect(result.error?.contains(message) == true)
     }
 
+    @Test(arguments: [
+        "{{#if}}Yes{{/if}}",
+        "{{#if }}Yes{{/if}}",
+        "{{#if +}}Yes{{#else}}No{{/if}}",
+        "{{#if first name}}Yes{{#else}}No{{/if}}",
+        "{{#if show \"Unfinished label}}Yes{{/if}}",
+        "{{ #if show}}Yes{{/if}}",
+        "Text {{ /if }}",
+        "Text {{ #else }}",
+        "Text {{ /else }}",
+    ])
+    func rejectsMalformedConditionalSyntax(content: String) {
+        let parsed = PlaceholderSyntaxParser.parse(content)
+        #expect(!parsed.diagnostics.isEmpty)
+        #expect(!Validation.validateContent(content).isValid)
+
+        var repository = SnippetRepository()
+        let draft = SnippetDraft(title: "Malformed conditional", content: content)
+        #expect(throws: SnippetDraftError.self) {
+            try draft.create(in: &repository, now: 0)
+        }
+        #expect(repository.snippets.isEmpty)
+    }
+
     @Test func rejectsFirstMalformedOrConflictingChoice() {
         let malformed = Validation.validateContent("{{first[A||B]}} {{second[X|X]}}")
         #expect(!malformed.isValid)

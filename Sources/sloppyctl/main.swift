@@ -218,9 +218,9 @@ func renderValues(_ assignments: [String], placeholders: [Placeholder]) throws -
 func missingRequiredKeys(in content: String, placeholders: [Placeholder], values: [String: String]) -> [String] {
     let selected = ConditionalBlocks.process(content, values: values)
     let activeKeys = Set(PlaceholderSyntaxParser.parse(selected).occurrences.map(\.key))
+    let errors = PlaceholderFormChoices.requiredErrors(placeholders, finalValues: values)
     return placeholders.filter {
-        $0.isRequired && activeKeys.contains($0.key)
-            && (values[$0.key]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+        activeKeys.contains($0.key) && errors[$0.key] != nil
     }
         .map(\.key)
 }

@@ -45,7 +45,7 @@ import SloppyCore
         #expect(missingRequiredKeys(in: content, placeholders: placeholders, values: completed).isEmpty)
     }
 
-    @Test(arguments: ["", " ", "\t\n"])
+    @Test(arguments: ["", " ", "\t\n", "\u{FEFF}", " \u{FEFF}\n"])
     func warnsForBlankRequiredAssignmentInActiveBranch(value: String) throws {
         let content = "{{#if feature}}{{name}}{{#else}}{{recipient}}{{/if}} {{optional|default}}"
         let placeholders = PlaceholderSyntaxParser.extractPlaceholders(content)

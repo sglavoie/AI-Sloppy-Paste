@@ -57,10 +57,19 @@ public enum PlaceholderSyntaxParser {
         var diagnostics: [PlaceholderSyntaxDiagnostic] = []
         var openBlocks: [(expression: ScannedExpression, hasElse: Bool)] = []
         let conditionalOpen = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}/.matchingSemantics(.unicodeScalar)
+        let validConditionalOpen = /\{\{#if\s+\+?[^\s}"]+(?:\s+"[^"]*")?\s*\}\}/.matchingSemantics(.unicodeScalar)
 
         for expression in scanExpressions(text) {
             let trimmed = expression.content.trimmed
-            if expression.raw.wholeMatch(of: conditionalOpen) != nil {
+            if let match = expression.raw.wholeMatch(of: conditionalOpen) {
+                // Rendering accepts legacy headers more broadly than the form
+                // can expose as a field. Reject new headers with unreachable
+                // keys instead of silently choosing their false branch.
+                if expression.raw.wholeMatch(of: validConditionalOpen) == nil
+                    || ConditionalBlocks.conditionKey(String(match.output.1)).isEmpty {
+                    diagnostics.append(conditionalDiagnostic(expression,
+                        "Invalid conditional header \(expression.raw): use {{#if key}} or {{#if key \"Label\"}}"))
+                }
                 openBlocks.append((expression, false))
                 continue
             }
@@ -84,7 +93,11 @@ public enum PlaceholderSyntaxParser {
                 }
                 continue
             }
-            if trimmed.contains(/^#if\s/.matchingSemantics(.unicodeScalar)) || controlExpressions.contains(trimmed) { continue }
+            if trimmed == "#if" || trimmed.contains(/^#if\s/.matchingSemantics(.unicodeScalar))
+                || controlExpressions.contains(trimmed) {
+                diagnostics.append(conditionalDiagnostic(expression, "Invalid conditional syntax in \(expression.raw)"))
+                continue
+            }
 
             let occurrence: ParsedValuePlaceholderOccurrence
             switch ChoiceExpressionParser.parse(trimmed) {

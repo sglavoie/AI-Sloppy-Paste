@@ -13,8 +13,8 @@ struct ManageTagsView: View {
 
     @ViewState private var query = ""
     @ViewState private var selectedID: String?
-    /// The tag awaiting ⌃X delete confirmation.
-    @ViewState private var pendingDelete: TagStatistics?
+    /// The tag and the snippets it affected when deletion was requested.
+    @ViewState private var pendingDelete: PendingTagDeletion?
     @ViewState private var searchHandle = FocusHandle()
 
     private var sort: TagSortOption { TagSortOption(rawValue: sortRaw) ?? .nameAsc }
@@ -28,6 +28,11 @@ struct ManageTagsView: View {
         var stats: TagStatistics
 
         var id: String { tag }
+    }
+
+    private struct PendingTagDeletion {
+        var stats: TagStatistics
+        var snippetIDs: Set<String>
     }
 
     var body: some View {
@@ -78,10 +83,10 @@ struct ManageTagsView: View {
                 hints: selection == nil ? ["⌘K Actions", "⎋ Back"] : ["⌘M Merge", "⌃X Delete", "⌘K Actions", "⎋ Back"])
         }
         .overlay {
-            if let stats = pendingDelete {
+            if let pending = pendingDelete {
                 ConfirmationOverlay(
                     title: "Delete Tag",
-                    message: "Delete \"\(stats.tag)\"? This tag will be removed from all snippets.",
+                    message: "Delete \"\(pending.stats.tag)\"? This tag will be removed from all snippets.",
                     confirmTitle: "Delete",
                     confirm: confirmDelete,
                     cancel: { pendingDelete = nil })
@@ -169,12 +174,14 @@ struct ManageTagsView: View {
     }
 
     private func confirmDelete() {
-        guard let stats = pendingDelete else { return }
+        guard let pending = pendingDelete else { return }
         pendingDelete = nil
-        selectedID = ListSelection.neighbour(of: stats.tag, in: currentLines().map(\.id))
+        let neighbourID = ListSelection.neighbour(of: pending.stats.tag, in: currentLines().map(\.id))
         store.reloadIfChanged()
         do {
-            try store.mutate { repository, now in try repository.deleteTag(stats.tag, now: now) }
+            try ConfirmedDestructiveActions(store: store).deleteTag(
+                pending.stats.tag, expectedSnippetIDs: pending.snippetIDs)
+            selectedID = neighbourID
             toasts.success("Tag deleted")
         } catch {
             toasts.failure("Failed to delete tag", message: error.localizedDescription)
@@ -215,7 +222,11 @@ struct ManageTagsView: View {
                 id: "deleteTag", title: snippetCount > 0 ? "Delete Tag (\(snippetCount) snippets)" : "Delete Tag",
                 chord: KeyChord(.character("x"), .control), isEnabled: hasSelection
             ) {
-                pendingDelete = currentSelection()?.stats
+                if let stats = currentSelection()?.stats {
+                    pendingDelete = PendingTagDeletion(
+                        stats: stats,
+                        snippetIDs: ConfirmedDestructiveActions.taggedSnippetIDs(in: store.data, tag: stats.tag))
+                }
             },
             KeyBinding(id: "tagSort", title: "Next Sort Order", chord: KeyChord(.character("p"), .command)) {
                 let all = TagSortOption.allCases

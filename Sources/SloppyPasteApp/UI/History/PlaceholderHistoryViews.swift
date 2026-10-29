@@ -23,9 +23,14 @@ struct ManagePlaceholderHistoryView: View {
 
     @ViewState private var query = ""
     @ViewState private var selectedID: String?
-    /// The key awaiting clear confirmation.
-    @ViewState private var pendingClear: PlaceholderKeyStats?
+    /// The key and values shown when clear confirmation opened.
+    @ViewState private var pendingClear: PendingHistoryClear?
     @ViewState private var searchHandle = FocusHandle()
+
+    private struct PendingHistoryClear {
+        var stat: PlaceholderKeyStats
+        var values: [PlaceholderHistoryValue]
+    }
 
     private var sort: PlaceholderKeySortOption { PlaceholderKeySortOption(rawValue: sortRaw) ?? .nameAsc }
 
@@ -82,10 +87,10 @@ struct ManagePlaceholderHistoryView: View {
                 hints: selection == nil ? ["⌘K Actions", "⎋ Back"] : ["⌃⇧X Clear", "⌘K Actions", "⎋ Back"])
         }
         .overlay {
-            if let stat = pendingClear {
+            if let pending = pendingClear {
                 ConfirmationOverlay(
                     title: "Clear Placeholder History",
-                    message: "Clear all \(valuesLabel(stat.valueCount)) for \"\(stat.key)\"?",
+                    message: "Clear all \(valuesLabel(pending.stat.valueCount)) for \"\(pending.stat.key)\"?",
                     confirmTitle: "Clear",
                     confirm: confirmClear,
                     cancel: { pendingClear = nil })
@@ -141,20 +146,15 @@ struct ManagePlaceholderHistoryView: View {
     }
 
     private func confirmClear() {
-        guard let stat = pendingClear else { return }
+        guard let pending = pendingClear else { return }
         pendingClear = nil
         store.reloadIfChanged()
-        let neighbourID = ListSelection.neighbour(of: stat.key, in: stats().map(\.key))
+        let neighbourID = ListSelection.neighbour(of: pending.stat.key, in: stats().map(\.key))
         do {
-            let cleared = try store.mutate { repository, _ in
-                guard let values = repository.data.placeholderHistory[stat.key] else {
-                    throw StorageError.placeholderKeyNotFound
-                }
-                repository.data.clearPlaceholderHistory(forKey: stat.key)
-                return values.count
-            }
+            let cleared = try ConfirmedDestructiveActions(store: store).clearHistory(
+                key: pending.stat.key, expectedValues: pending.values)
             selectedID = neighbourID
-            toasts.success("History cleared", message: "Cleared \(valuesLabel(cleared)) for \"\(stat.key)\"")
+            toasts.success("History cleared", message: "Cleared \(valuesLabel(cleared)) for \"\(pending.stat.key)\"")
         } catch {
             toasts.failure("Failed to clear history", message: error.localizedDescription)
         }
@@ -178,7 +178,10 @@ struct ManagePlaceholderHistoryView: View {
                 id: "clearKey", title: "Clear All Values (\(selection?.valueCount ?? 0))",
                 chord: KeyChord(.character("x"), [.control, .shift]), isEnabled: hasSelection
             ) {
-                pendingClear = currentSelection()
+                if let stat = currentSelection() {
+                    pendingClear = PendingHistoryClear(
+                        stat: stat, values: store.data.placeholderHistory(forKey: stat.key))
+                }
             },
             KeyBinding(id: "historySort", title: "Next Sort Order", chord: KeyChord(.character("p"), .command)) {
                 let all = PlaceholderKeySortOption.allCases
@@ -204,7 +207,7 @@ struct PlaceholderHistoryDetailView: View {
 
     @ViewState private var query = ""
     @ViewState private var selectedID: String?
-    @ViewState private var pendingDelete: String?
+    @ViewState private var pendingDelete: PlaceholderHistoryValue?
     /// The value being edited and the edit field's text and error.
     @ViewState private var editing: String?
     @ViewState private var editText = ""
@@ -268,7 +271,7 @@ struct PlaceholderHistoryDetailView: View {
             if let value = pendingDelete {
                 ConfirmationOverlay(
                     title: "Delete Value",
-                    message: "Delete \"\(value)\" from history for \"\(key)\"?",
+                    message: "Delete \"\(value.value)\" from history for \"\(key)\"?",
                     confirmTitle: "Delete",
                     confirm: confirmDelete,
                     cancel: { pendingDelete = nil })
@@ -399,13 +402,9 @@ struct PlaceholderHistoryDetailView: View {
         guard let value = pendingDelete else { return }
         pendingDelete = nil
         store.reloadIfChanged()
-        let neighbourID = ListSelection.neighbour(of: value, in: values().map(\.value))
+        let neighbourID = ListSelection.neighbour(of: value.value, in: values().map(\.value))
         do {
-            try store.mutate { repository, _ in
-                guard repository.data.deletePlaceholderValue(key: key, value: value) else {
-                    throw StorageError.placeholderValueNotFound
-                }
-            }
+            try ConfirmedDestructiveActions(store: store).deleteHistoryValue(key: key, expectedValue: value)
             selectedID = neighbourID
             toasts.success("Value deleted")
             // The key is gone once its last value is.
@@ -441,7 +440,7 @@ struct PlaceholderHistoryDetailView: View {
                 id: "deleteValue", title: "Delete Value", chord: KeyChord(.character("x"), .control),
                 isEnabled: hasSelection
             ) {
-                pendingDelete = currentSelection()?.value
+                pendingDelete = currentSelection()
             },
         ]
     }

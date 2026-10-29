@@ -23,6 +23,8 @@ struct SnippetActions {
     @discardableResult
     func delete(_ snippet: Snippet) -> Bool {
         let deleted: Void? = perform(failure: "Failed to delete snippet") { repository, _ in
+            guard let current = repository.snippet(id: snippet.id) else { throw StorageError.snippetNotFound }
+            guard current == snippet else { throw DestructiveActionConflict.snippetChanged }
             guard repository.deleteSnippet(id: snippet.id) else { throw StorageError.snippetNotFound }
         }
         if deleted != nil {

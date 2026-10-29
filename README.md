@@ -247,14 +247,17 @@ It uses the same `StorageData` JSON shape as the Raycast extension's export.
 
 - Writes are atomic and pretty-printed.
 - A replace-import first copies the current file to `data.json.bak`.
-- Editing the file by hand is fine: the app reloads it when it changes.
+- Editing the file by hand is fine: the app reloads it when it changes. Save
+  through an atomic file replacement, or avoid editing it during an app save;
+  an editor that keeps the old file open can still write to its displaced inode.
 - If a reload fails, the last good data stays visible, but changes, imports,
   and snippet delivery are blocked until the file can be read again. A partial
   external edit is left in place for its writer to finish; fix the file and
   retry. Editor drafts stay intact.
 - App and `sloppyctl` writes use `data.json.lock` to serialize edits across
   processes. Changes made by an external editor that does not use this lock
-  are detected before saving, and the app reports a conflict.
+  are checked again during the atomic file swap; when a competing version is
+  found, it is restored and the app reports a conflict.
 - A data file with a newer storage version is left untouched and blocks changes
   and imports. Imports from newer export versions are also rejected before
   changing existing data. Update Sloppy Paste to a version that supports it.
@@ -325,7 +328,8 @@ swift run sloppyctl --help
 - `import`: merge or replace from an export.
 - `stats`: counts that match simple `jq` queries; `--json` is available.
 - `search`: the picker's query syntax (`tag:`, `not:tag:`, `ctx:`, `not:ctx:`,
-  `is:`, `not:`, quoted phrases, fuzzy words).
+  `is:`, `not:`, quoted phrases, fuzzy words). Plain output has one tab-separated
+  row per snippet; control characters and backslashes in fields are escaped.
 - `render`: expand a snippet's placeholders with `key=value` pairs.
 
 For omitted choice values, `render` uses the authored default or the first

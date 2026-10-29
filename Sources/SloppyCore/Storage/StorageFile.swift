@@ -125,8 +125,60 @@ public struct StorageFile: Sendable, Hashable {
     /// Fails when another writer changed the file since the data was read.
     /// Cooperative writers also hold `withExclusiveLock` around the operation.
     public func save(_ data: StorageData, ifUnchangedFrom snapshot: Snapshot) throws {
+        try save(data, ifUnchangedFrom: snapshot, beforeCommit: {})
+    }
+
+    /// `beforeCommit` provides a deterministic seam for testing a competing
+    /// writer between the early comparison and the atomic commit.
+    func save(
+        _ data: StorageData, ifUnchangedFrom snapshot: Snapshot,
+        beforeCommit: () throws -> Void
+    ) throws {
+        try data.validateUniqueSnippetIDs()
         try verifyUnchanged(snapshot)
-        try save(data)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let temporary = url.deletingLastPathComponent()
+            .appending(path: ".\(url.lastPathComponent).pending-\(UUID().uuidString)")
+        let preparedBytes = try StorageCoding.encode(data)
+        try preparedBytes.write(to: temporary, options: .atomic)
+        var removeTemporary = true
+        defer { if removeTemporary { try? FileManager.default.removeItem(at: temporary) } }
+
+        try beforeCommit()
+        if snapshot.bytes == nil {
+            // A file created while the new bytes were prepared must not be
+            // replaced. RENAME_EXCL checks this at the rename itself.
+            guard renamex_np(temporary.path, url.path, UInt32(RENAME_EXCL)) == 0 else {
+                if errno == EEXIST { throw StorageError.dataChangedSinceRead }
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+            return
+        }
+
+        // Unlike a normal atomic write, a swap keeps the displaced inode at
+        // `temporary`. Compare its actual bytes after the atomic exchange so
+        // an editor that ignored our sidecar lock cannot be overwritten.
+        guard renamex_np(temporary.path, url.path, UInt32(RENAME_SWAP)) == 0 else {
+            if errno == ENOENT { throw StorageError.dataFileDisappeared }
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        guard (try? Data(contentsOf: temporary)) == snapshot.bytes else {
+            // Swap back instead of replacing the competing writer's bytes.
+            // Even if a third writer replaced `url` meanwhile, the second
+            // swap preserves that version at `temporary`.
+            guard renamex_np(temporary.path, url.path, UInt32(RENAME_SWAP)) == 0 else {
+                removeTemporary = false
+                throw StorageError.concurrentWriteNeedsRecovery(temporary)
+            }
+            // A third writer could have replaced the just-published version
+            // before the rollback. Keep those bytes instead of deleting them.
+            guard (try? Data(contentsOf: temporary)) == preparedBytes else {
+                removeTemporary = false
+                throw StorageError.concurrentWriteNeedsRecovery(temporary)
+            }
+            throw StorageError.dataChangedSinceRead
+        }
     }
 
     private func verifyUnchanged(_ snapshot: Snapshot) throws {
@@ -159,8 +211,11 @@ public struct StorageFile: Sendable, Hashable {
             try writeBackup()
         }
         let next = try ImportExport.apply(payload, to: current, mode: mode)
-        if let snapshot { try verifyUnchanged(snapshot) }
-        try save(next)
+        if let snapshot {
+            try save(next, ifUnchangedFrom: snapshot)
+        } else {
+            try save(next)
+        }
         return next
     }
 

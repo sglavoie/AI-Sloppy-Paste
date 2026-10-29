@@ -142,6 +142,23 @@ struct Options {
 
 func nowMs() -> Int64 { Date().epochMilliseconds }
 
+/// Keep every search result on one tab-separated line, including titles from
+/// imports or external edits that contain control characters.
+func escapeTSVField(_ value: String) -> String {
+    var result = ""
+    for scalar in value.unicodeScalars {
+        switch scalar.value {
+        case 0x5c: result += "\\\\"
+        case 0x09: result += "\\t"
+        case 0x0a: result += "\\n"
+        case 0x0d: result += "\\r"
+        case 0x00...0x1f, 0x7f: result += String(format: "\\u%04X", scalar.value)
+        default: result.unicodeScalars.append(scalar)
+        }
+    }
+    return result
+}
+
 func load(_ file: StorageFile) throws -> StorageData {
     let result = try file.load(now: nowMs())
     if let quarantined = result.quarantinedURL {
@@ -248,7 +265,8 @@ func run(_ arguments: [String]) throws {
             print(String(decoding: try encoder.encode(list.rows), as: UTF8.self))
         } else {
             for snippet in list.rows {
-                print([snippet.id, snippet.title, snippet.tags.joined(separator: ",")].joined(separator: "\t"))
+                print([snippet.id, snippet.title, snippet.tags.joined(separator: ",")]
+                    .map(escapeTSVField).joined(separator: "\t"))
             }
         }
     case "--version", "version":

@@ -97,6 +97,38 @@ import Testing
         #expect(try file.read() == external)
     }
 
+    @Test func atomicCommitRestoresAnUncoordinatedWrite() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let original = StorageData(snippets: [Snippet(id: "a", title: "A", content: "first", createdAt: 1, updatedAt: 1)])
+        try file.save(original)
+        let snapshot = try file.readSnapshot()
+        var external = original
+        external.snippets[0].content = "external"
+        let externalBytes = try StorageCoding.encode(external)
+
+        #expect(throws: StorageError.dataChangedSinceRead) {
+            try file.save(original, ifUnchangedFrom: snapshot) {
+                try externalBytes.write(to: file.url, options: .atomic)
+            }
+        }
+        #expect(try Data(contentsOf: file.url) == externalBytes)
+        #expect(try Set(FileManager.default.contentsOfDirectory(atPath: file.url.deletingLastPathComponent().path))
+            == ["data.json"])
+    }
+
+    @Test func atomicCreateDoesNotReplaceACompetingNewFile() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let snapshot = try file.readSnapshot()
+        let external = Data("external".utf8)
+
+        #expect(throws: StorageError.dataChangedSinceRead) {
+            try file.save(.empty, ifUnchangedFrom: snapshot) {
+                try external.write(to: file.url, options: .atomic)
+            }
+        }
+        #expect(try Data(contentsOf: file.url) == external)
+    }
+
     @Test func sidecarLockSerializesConcurrentTransactions() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let firstEntered = DispatchSemaphore(value: 0)

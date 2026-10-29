@@ -3,6 +3,10 @@ import SloppyCore
 @testable import sloppyctl
 
 @Suite struct OptionsTests {
+    @Test func searchFieldsStayOnOneLine() {
+        #expect(escapeTSVField("one\ntwo\tthree\r\\\u{0000}") == "one\\ntwo\\tthree\\r\\\\\\u0000")
+    }
+
     @Test func tagOptionTreatsFormerSentinelAsLiteralTag() throws {
         let options = try Options(["--tag", "__untagged__"][...])
         let snippets = [

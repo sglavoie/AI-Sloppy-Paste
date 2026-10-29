@@ -33,10 +33,12 @@ public struct SnippetDraft: Sendable, Hashable, Codable {
 
     /// The first nonempty line, trimmed, truncated to 50 characters with "...".
     public static func suggestedTitle(for text: String, maxLength: Int = 50) -> String {
+        guard maxLength > 0 else { return "" }
         let trimmed = text.components(separatedBy: .newlines)
             .lazy.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty } ?? ""
         guard trimmed.count > maxLength else { return trimmed }
+        guard maxLength > 3 else { return String(trimmed.prefix(maxLength)) }
         return String(trimmed.prefix(maxLength - 3)) + "..."
     }
 

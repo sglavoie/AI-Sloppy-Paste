@@ -7,6 +7,7 @@ public enum StorageError: Error, Equatable, LocalizedError {
     case invalidCurrentStorageData(String)
     case duplicateStoredSnippetID(String)
     case dataChangedSinceRead
+    case concurrentWriteNeedsRecovery(URL)
     case dataFileDisappeared
     case snippetNotFound
     case tagNotFound
@@ -31,6 +32,8 @@ public enum StorageError: Error, Equatable, LocalizedError {
             "The data file contains multiple snippets with ID \"\(id)\". It has been left unchanged. Repair the duplicate ID and try again."
         case .dataChangedSinceRead:
             "The data file changed while the operation was running. No changes were saved; try again."
+        case .concurrentWriteNeedsRecovery(let url):
+            "The data file changed during a save and could not be restored automatically. A displaced version is preserved at \(url.path). Review both files before editing again."
         case .dataFileDisappeared:
             "The data file disappeared after it was loaded. No changes were saved; restore it or restart the app."
         case .snippetNotFound: "Snippet not found"

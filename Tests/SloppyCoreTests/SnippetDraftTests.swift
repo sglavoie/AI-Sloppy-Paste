@@ -17,6 +17,13 @@ import Testing
         #expect(SnippetDraft.suggestedTitle(for: input) == expected)
     }
 
+    @Test(arguments: [
+        (0, ""), (1, "A"), (2, "AB"), (3, "ABC"), (4, "A..."),
+    ])
+    func suggestedTitleHandlesShortLimits(limit: Int, expected: String) {
+        #expect(SnippetDraft.suggestedTitle(for: "ABCDE", maxLength: limit) == expected)
+    }
+
     @Test func clipboardDraftKeepsRawContent() throws {
         let draft = try #require(SnippetDraft(clipboard: "  line one\nline two  "))
         #expect(draft.title == "line one")

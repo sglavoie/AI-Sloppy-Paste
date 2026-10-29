@@ -47,13 +47,23 @@ final class Paster {
             isSecureInputEnabled: { IsSecureEventInputEnabled() },
             isLive: { !$0.isTerminated },
             isFrontmost: { target in
-                NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier
+                Self.targetHasFocus(
+                    targetPID: target.processIdentifier,
+                    frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
+                    ownKeyWindow: NSApp.keyWindow)
             },
             activate: { $0.activate() },
             wait: { try? await Task.sleep(for: .milliseconds(delay)) },
             postPaste: Self.postCommandV
         )
         return try await sequence.run(text, into: target)
+    }
+
+    /// A nonactivating panel can own keyboard focus without changing the
+    /// frontmost application. Reopening the picker during the paste delay
+    /// must not send the pending ⌘V into its search field or an editor.
+    static func targetHasFocus(targetPID: pid_t, frontmostPID: pid_t?, ownKeyWindow: NSWindow?) -> Bool {
+        frontmostPID == targetPID && ownKeyWindow?.isVisible != true
     }
 
     private static func postCommandV() -> Bool {

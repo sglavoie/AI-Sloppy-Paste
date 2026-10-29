@@ -52,6 +52,19 @@ import Testing
         #expect(process("{{TIME}}", now: 1_710_460_800_000) == "00:00")  // 2024-03-15T00:00:00Z
     }
 
+    @Test func largeRepeatedSystemTemplateUsesEachCallsClockAndTimeZone() {
+        let content = String(repeating: "{{DATE}} {{TIME}}\n", count: 5_000)
+        #expect(content.count < ValidationLimits.contentMaxLength)
+        #expect(process(content) == String(repeating: "2024-03-15 14:30\n", count: 5_000))
+        #expect(process(content, now: 1_710_471_600_000,
+            timeZone: TimeZone(identifier: "America/Los_Angeles")!)
+            == String(repeating: "2024-03-14 20:00\n", count: 5_000))
+
+        let preview = SnippetPreview.build(content, now: Self.now, timeZone: Self.utc)
+        #expect(preview.hasPrefix("⟨DATE → 2024-03-15⟩ ⟨TIME → 14:30⟩\n"))
+        #expect(preview.utf16.count <= 500)
+    }
+
     @Test func templateExamplesInsideConditionalLabelsStayLiteral() {
         let content = #"{{#if enabled "Include {{DATE}} here"}}Today: {{DATE}}{{/if}}"#
         #expect(process(content) == #"{{#if enabled "Include {{DATE}} here"}}Today: 2024-03-15{{/if}}"#)

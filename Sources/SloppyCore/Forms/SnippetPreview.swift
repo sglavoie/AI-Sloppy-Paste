@@ -18,11 +18,14 @@ public enum SnippetPreview {
 
     private static func previewSystemPlaceholders(_ content: String, now: Int64, timeZone: TimeZone) -> String {
         let expression = /\{\{\s*(DATETIME|DATE|TIME|TODAY|NOW|YEAR|MONTH|DAY)\s*\}\}/.matchingSemantics(.unicodeScalar)
+        var resolvedValues: [String: String] = [:]
         return content.replacing(expression) { match in
             let name = String(match.1)
-            guard let resolved = SystemPlaceholders.value(for: name, now: now, timeZone: timeZone) else {
+            guard let resolved = resolvedValues[name]
+                ?? SystemPlaceholders.value(for: name, now: now, timeZone: timeZone) else {
                 return String(match.0)
             }
+            resolvedValues[name] = resolved
             return "⟨\(name) → \(resolved)⟩"
         }
     }

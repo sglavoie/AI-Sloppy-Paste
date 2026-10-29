@@ -42,6 +42,10 @@ public enum SystemPlaceholders {
             .filter { $0.content.trimmed.contains(/^#if\s/.matchingSemantics(.unicodeScalar)) }
             .map(\.indices)
         var openerIndex = 0
+        // A snippet may repeat the same name thousands of times. Formatting
+        // each occurrence constructs a DateFormatter and stalls the main thread.
+        // Keep this cache local: the next call can use a new clock or time zone.
+        var resolvedValues: [String: String] = [:]
         var result = ""
         var cursor = text.startIndex
         for match in text.matches(of: regex) {
@@ -53,9 +57,15 @@ public enum SystemPlaceholders {
             let insideOpener = openerIndex < conditionalOpeners.count
                 && conditionalOpeners[openerIndex].lowerBound <= match.range.lowerBound
                 && match.range.upperBound <= conditionalOpeners[openerIndex].upperBound
-            result += insideOpener
-                ? String(match.output.0)
-                : value(for: String(match.output.1), now: now, timeZone: timeZone) ?? String(match.output.0)
+            if insideOpener {
+                result += String(match.output.0)
+            } else {
+                let name = String(match.output.1)
+                let resolved = resolvedValues[name]
+                    ?? value(for: name, now: now, timeZone: timeZone) ?? String(match.output.0)
+                resolvedValues[name] = resolved
+                result += resolved
+            }
             cursor = match.range.upperBound
         }
         return result + text[cursor...]

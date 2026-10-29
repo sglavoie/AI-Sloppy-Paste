@@ -178,7 +178,7 @@ public struct ImportSummary: Sendable, Hashable {
 }
 
 extension ImportExport {
-    /// `sloppy-paste-2026-01-05T09-30-00-000Z.json`, the extension's ISO
+    /// `ai-sloppy-paste-2026-01-05T09-30-00-000Z.json`, the extension's ISO
     /// timestamp with `:` and `.` replaced so it is a safe file name.
     public static func exportFileName(now: Int64) -> String {
         let formatter = ISO8601DateFormatter()
@@ -187,7 +187,7 @@ extension ImportExport {
         let timestamp = formatter.string(from: Date(epochMilliseconds: now))
             .replacingOccurrences(of: ":", with: "-")
             .replacingOccurrences(of: ".", with: "-")
-        return "sloppy-paste-\(timestamp).json"
+        return "ai-sloppy-paste-\(timestamp).json"
     }
 }
 

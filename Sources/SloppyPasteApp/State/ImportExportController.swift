@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 /// Import and export through the system open and save panels. The panels are
 /// modal, so the picker hides and the app activates first; afterwards the app
-/// that was frontmost comes back unless a Sloppy Paste window (Settings) is
+/// that was frontmost comes back unless an AI Sloppy Paste window (Settings) is
 /// still open. Results show in the HUD, since the picker is hidden by then.
 @MainActor
 final class ImportExportController {
@@ -48,7 +48,7 @@ final class ImportExportController {
             let panel = NSOpenPanel()
             panel.title = "Import Snippets"
             panel.prompt = "Choose"
-            panel.message = "Choose a Sloppy Paste or Raycast export file"
+            panel.message = "Choose an AI Sloppy Paste or Raycast export file"
             panel.allowedContentTypes = [.json]
             panel.allowsMultipleSelection = false
             panel.canChooseDirectories = false

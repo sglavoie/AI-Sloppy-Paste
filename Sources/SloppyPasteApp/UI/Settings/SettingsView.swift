@@ -39,7 +39,7 @@ struct SettingsView: View {
                     set: { launchAtLogin.setEnabled($0) }))
                 if launchAtLogin.needsApproval {
                     HStack {
-                        Text("Allow Sloppy Paste in Login Items to finish.")
+                        Text("Allow AI Sloppy Paste in Login Items to finish.")
                             .font(.caption).foregroundStyle(.secondary)
                         Button("Open Login Items…") { launchAtLogin.openSystemSettings() }
                             .controlSize(.small)

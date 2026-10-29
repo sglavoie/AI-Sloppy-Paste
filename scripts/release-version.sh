@@ -61,7 +61,7 @@ finish() {
 }
 trap finish EXIT
 
-echo "Bumping Sloppy Paste $version -> $next"
+echo "Bumping AI Sloppy Paste $version -> $next"
 updated="$(sed "s/static let version = \"$version\"/static let version = \"$next\"/" "$source_file")"
 printf '%s\n' "$updated" > "$source_file"
 git add -- "$source_file"

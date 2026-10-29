@@ -244,7 +244,7 @@ import Testing
     }
 
     @Test func exportFileNameUsesSafeUTCTimestamp() {
-        #expect(ImportExport.exportFileName(now: 1_767_605_400_123) == "sloppy-paste-2026-01-05T09-30-00-123Z.json")
+        #expect(ImportExport.exportFileName(now: 1_767_605_400_123) == "ai-sloppy-paste-2026-01-05T09-30-00-123Z.json")
     }
 
     @Test func mergeSummaryCountsOnlyNewSnippets() throws {

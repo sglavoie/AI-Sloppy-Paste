@@ -84,7 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "The snippet data file could not be read"
-        alert.informativeText = "It was moved aside to \(url.path) and Sloppy Paste continues with empty data. "
+        alert.informativeText = "It was moved aside to \(url.path) and AI Sloppy Paste continues with empty data. "
             + "Fix the file and move it back to \(store.file.url.path) to restore your snippets."
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Show in Finder")
@@ -105,17 +105,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = item.button {
             let image = NSImage(
                 systemSymbolName: "doc.on.clipboard",
-                accessibilityDescription: "Sloppy Paste"
+                accessibilityDescription: "AI Sloppy Paste"
             )
             image?.isTemplate = true
             button.image = image
-            button.toolTip = "Sloppy Paste"
+            button.toolTip = "AI Sloppy Paste"
         }
 
         let menu = NSMenu()
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
             as? String ?? SloppyCore.version
-        let aboutItem = NSMenuItem(title: "Sloppy Paste \(version)", action: nil, keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "AI Sloppy Paste \(version)", action: nil, keyEquivalent: "")
         aboutItem.isEnabled = false
         menu.addItem(aboutItem)
         menu.addItem(.separator())
@@ -146,7 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(
             NSMenuItem(
-                title: "Quit Sloppy Paste",
+                title: "Quit AI Sloppy Paste",
                 action: #selector(NSApplication.terminate(_:)),
                 keyEquivalent: "q"
             )

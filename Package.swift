@@ -6,7 +6,7 @@ let testingPluginPath = ProcessInfo.processInfo.environment["SWIFT_TESTING_PLUGI
     ?? "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing"
 
 let package = Package(
-    name: "SloppyPaste",
+    name: "AI Sloppy Paste",
     platforms: [.macOS(.v15)],
     products: [
         .library(name: "SloppyCore", targets: ["SloppyCore"]),

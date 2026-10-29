@@ -51,7 +51,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let hosting = NSHostingController(rootView: makeView())
         hosting.sizingOptions = [.preferredContentSize]
         let window = NSWindow(contentViewController: hosting)
-        window.title = "Sloppy Paste Settings"
+        window.title = "AI Sloppy Paste Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
         window.collectionBehavior = [.moveToActiveSpace]

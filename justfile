@@ -3,15 +3,18 @@
 default:
     @just --list
 
-app_name := "SloppyPaste"
+app_name := "AI Sloppy Paste"
+executable_name := "SloppyPaste"
 bundle_id := "dev.sglavoie.SloppyPaste"
 version := `sed -n 's/.*static let version = "\(.*\)".*/\1/p' Sources/SloppyCore/SloppyCore.swift`
 bundle_dir := ".build/bundle"
 app_path := bundle_dir / app_name + ".app"
 install_path := home_directory() / "Applications" / app_name + ".app"
+legacy_install_path := home_directory() / "Applications/SloppyPaste.app"
 
 # Self-signed identity kept in its own keychain, so the designated requirement
 # (and with it the Accessibility grant) survives rebuilds.
+# Keep the original certificate name for compatibility with existing keychains.
 signing_identity := "Sloppy Paste Local Signing"
 signing_keychain := home_directory() / "Library/Keychains/sloppy-paste-signing.keychain-db"
 signing_keychain_password := "sloppy-paste"
@@ -47,7 +50,7 @@ icon:
     done
     iconutil -c icns -o "{{bundle_dir}}/AppIcon.icns" "$iconset"
 
-# Assemble an unsigned SloppyPaste.app in .build/bundle
+# Assemble an unsigned AI Sloppy Paste.app in .build/bundle
 # UNIVERSAL=1 builds both Apple silicon and Intel for distribution.
 bundle: icon
     #!/usr/bin/env bash
@@ -61,11 +64,11 @@ bundle: icon
     build_number="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
     rm -rf "{{app_path}}"
     mkdir -p "{{app_path}}/Contents/MacOS" "{{app_path}}/Contents/Resources"
-    cp "$bin_path/{{app_name}}" "{{app_path}}/Contents/MacOS/{{app_name}}"
+    cp "$bin_path/{{executable_name}}" "{{app_path}}/Contents/MacOS/{{executable_name}}"
     cp "$bin_path/sloppyctl" "{{app_path}}/Contents/MacOS/sloppyctl"
     cp LICENSE "{{app_path}}/Contents/Resources/LICENSE"
     cp "{{bundle_dir}}/AppIcon.icns" "{{app_path}}/Contents/Resources/AppIcon.icns"
-    sed -e "s/@EXECUTABLE@/{{app_name}}/" \
+    sed -e "s/@EXECUTABLE@/{{executable_name}}/" \
         -e "s/@BUNDLE_ID@/{{bundle_id}}/" \
         -e "s/@VERSION@/{{version}}/" \
         -e "s/@BUILD@/$build_number/" \
@@ -73,7 +76,7 @@ bundle: icon
     printf 'APPL????' > "{{app_path}}/Contents/PkgInfo"
     plutil -lint "{{app_path}}/Contents/Info.plist"
 
-# Build and sign SloppyPaste.app with the local signing identity
+# Build and sign AI Sloppy Paste.app with the local signing identity
 sign: bundle
     #!/usr/bin/env bash
     set -euo pipefail
@@ -105,11 +108,11 @@ publish *notes:
 install: sign
     #!/usr/bin/env bash
     set -euo pipefail
-    if pkill -x {{app_name}}; then
-        while pgrep -x {{app_name}} >/dev/null; do sleep 0.1; done
+    if pkill -x "{{executable_name}}"; then
+        while pgrep -x "{{executable_name}}" >/dev/null; do sleep 0.1; done
     fi
     mkdir -p "$(dirname "{{install_path}}")"
-    rm -rf "{{install_path}}"
+    rm -rf "{{install_path}}" "{{legacy_install_path}}"
     ditto "{{app_path}}" "{{install_path}}"
     open "{{install_path}}"
 
@@ -119,8 +122,8 @@ run: sign
 
 # Quit the app and remove it from ~/Applications
 uninstall:
-    pkill -x {{app_name}} || true
-    rm -rf "{{install_path}}"
+    pkill -x "{{executable_name}}" || true
+    rm -rf "{{install_path}}" "{{legacy_install_path}}"
 
 # Print the designated requirement of the built app
 show-dr:

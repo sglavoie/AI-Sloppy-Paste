@@ -100,7 +100,7 @@ final class PickerPanelController {
         record: { [store] id, values in
             try await store.recordUse(id: id, placeholderValues: values)
         },
-        log: { NSLog("Sloppy Paste: %@", $0) }
+        log: { NSLog("AI Sloppy Paste: %@", $0) }
     )
     /// The app that was frontmost when the panel opened; the paste target.
     private(set) var previousApp: NSRunningApplication?

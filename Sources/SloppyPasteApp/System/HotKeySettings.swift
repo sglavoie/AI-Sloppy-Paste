@@ -198,7 +198,7 @@ final class HotKeySettings {
             registrationError = nil
             return true
         } catch {
-            NSLog("Sloppy Paste: could not register the global hotkey: \(error)")
+            NSLog("AI Sloppy Paste: could not register the global hotkey: \(error)")
             registrationError = "\(hotKey.displayString) is not available; another app may be using it."
             return false
         }

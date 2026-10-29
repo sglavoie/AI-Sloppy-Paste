@@ -1,4 +1,4 @@
-# Sloppy Paste
+# AI Sloppy Paste
 
 A native macOS app for storing, searching and pasting text snippets. It replaces
 the [AI Sloppy Paste](https://github.com/sglavoie/dev-helpers/tree/main/typescript/ai-sloppy-paste) Raycast extension and
@@ -16,14 +16,20 @@ On macOS 15 or later, install the signed and notarized release with Homebrew:
 
 ```bash
 brew install --cask sglavoie/tap/sloppy-paste
-open -a SloppyPaste
+open -a "AI Sloppy Paste"
 ```
 
 The release supports Apple silicon and Intel Macs. Homebrew installs the app
 and the `sloppyctl` command; no Swift toolchain or local signing setup is needed.
-You can also download `SloppyPaste.zip` from the
+You can also download `AI-Sloppy-Paste.zip` from the
 [latest release](https://github.com/sglavoie/AI-Sloppy-Paste/releases/latest),
-unzip it, and move `SloppyPaste.app` to Applications.
+unzip it, and move `AI Sloppy Paste.app` to Applications.
+
+The Homebrew token remains `sloppy-paste`. The bundle ID, data paths, internal
+Swift target names, and local signing identity keep their original names for
+compatibility. `just install` removes the previous `~/Applications/SloppyPaste.app`
+when installing the renamed app. Historical live-verification reports retain
+the names and paths used by the builds they tested.
 
 Grant Accessibility permission when prompted to enable pasting into other apps.
 Update with `brew upgrade --cask sloppy-paste`. Uninstalling with
@@ -59,7 +65,7 @@ including incomplete tags and surrounding whitespace, is preserved as typed.
 If the recovery file cannot be read, it is left untouched and the picker shows
 a warning; new drafts stay in memory until the file is repaired and the app
 restarted. A failed draft write also shows a warning to keep the app open. If
-another copy of Sloppy Paste changes `drafts.json`, this copy stops saving
+another copy of AI Sloppy Paste changes `drafts.json`, this copy stops saving
 drafts and warns you to copy its unsaved edits before restarting. The other
 copy's recovery file is left untouched.
 
@@ -131,9 +137,9 @@ just
 | `build` | Debug build of every target. |
 | `test` | Run the core and app-state test suites (`swift test`). |
 | `test-paste-target-safety` | Run only the paste-back target safety tests. |
-| `bundle` | Assemble an unsigned `SloppyPaste.app` in `.build/bundle`. |
+| `bundle` | Assemble an unsigned `AI Sloppy Paste.app` in `.build/bundle`. |
 | `sign` | Bundle, then sign it with the local signing identity. |
-| `install` | Sign, replace `~/Applications/SloppyPaste.app` and launch it. |
+| `install` | Sign, replace `~/Applications/AI Sloppy Paste.app` and launch it. |
 | `run` | Sign and launch the app straight from `.build/bundle`. |
 | `uninstall` | Quit the app and remove it from `~/Applications`. |
 | `show-dr` | Print the designated requirement of the built app. |
@@ -207,7 +213,7 @@ The individual steps remain available for manual releases and retries:
    `Sources/SloppyCore/SloppyCore.swift` and commit it.
 2. Run `just release` without a bump argument. It runs the tests, builds both
    architectures, signs the app and `sloppyctl`, notarizes and staples the app, and prepares
-   `.build/release/SloppyPaste.zip`, `SHA256SUMS`, and `sloppy-paste.rb`.
+   `.build/release/AI-Sloppy-Paste.zip`, `SHA256SUMS`, and `sloppy-paste.rb`.
 3. Push to `origin/main`, then run `just publish`, optionally followed by release
    notes. It verifies the prepared archive, publishes the GitHub release at the recorded build commit,
    and commits and pushes the cask update to the tap. A retry checks that an
@@ -291,7 +297,7 @@ It uses the same `StorageData` JSON shape as the Raycast extension's export.
   found, it is restored and the app reports a conflict.
 - A data file with a newer storage version is left untouched and blocks changes
   and imports. Imports from newer export versions are also rejected before
-  changing existing data. Update Sloppy Paste to a version that supports it.
+  changing existing data. Update AI Sloppy Paste to a version that supports it.
 - Imports using the current export version reject malformed snippet fields;
   older exports retain legacy field conversion.
 - Imports reject files containing multiple snippets with the same ID, so no
@@ -342,7 +348,7 @@ Settings → Data shows the path, with a Reveal button, and the storage size.
 
 5. Turn off the Raycast hotkey: Raycast Settings → Extensions → AI Sloppy Paste
    → Manage Snippets → clear the hotkey. Then disable or uninstall the extension.
-   If you want the new app on the same chord, set it in Sloppy Paste's Settings
+   If you want the new app on the same chord, set it in AI Sloppy Paste's Settings
    after clearing it in Raycast.
 
 Legacy exports that use a single `category` instead of tags are migrated on

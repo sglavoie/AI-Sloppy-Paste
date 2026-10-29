@@ -6,8 +6,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 out=.build/release
-app="$out/SloppyPaste.app"
-archive="$out/SloppyPaste.zip"
+app="$out/AI Sloppy Paste.app"
+archive="$out/AI-Sloppy-Paste.zip"
 tap="${TAP_DIR:-../sglavoie_homebrew-tap}"
 repo=sglavoie/AI-Sloppy-Paste
 cask=Casks/sloppy-paste.rb
@@ -40,7 +40,7 @@ git -C "$tap" pull --ff-only
 # Literal Markdown backticks, not shell substitutions.
 # shellcheck disable=SC2016
 if ! grep -Fq '| `sloppy-paste` |' "$tap/README.md"; then
-    echo "Add Sloppy Paste to the tap README (Cask and Updated by tables) and commit first." >&2
+    echo "Add AI Sloppy Paste to the tap README (Cask and Updated by tables) and commit first." >&2
     exit 1
 fi
 # Homebrew selects its cask-specific style rules by the Casks/ path.
@@ -50,15 +50,15 @@ brew style "$scratch/Casks/sloppy-paste.rb"
 git fetch -q origin
 git merge-base --is-ancestor "$commit" origin/main || { echo "Push $commit to origin/main first." >&2; exit 1; }
 
-notes="${1:-Sloppy Paste $version. Signed and notarized for macOS 15+, Apple silicon and Intel. Includes sloppyctl. Install: brew install --cask sglavoie/tap/sloppy-paste}"
+notes="${1:-AI Sloppy Paste $version. Signed and notarized for macOS 15+, Apple silicon and Intel. Includes sloppyctl. Install: brew install --cask sglavoie/tap/sloppy-paste}"
 if gh release view "v$version" --repo "$repo" >/dev/null 2>&1; then
-    gh release download "v$version" --repo "$repo" --pattern SloppyPaste.zip --dir "$scratch"
-    remote_sha="$(shasum -a 256 "$scratch/SloppyPaste.zip" | cut -d' ' -f1)"
+    gh release download "v$version" --repo "$repo" --pattern AI-Sloppy-Paste.zip --dir "$scratch"
+    remote_sha="$(shasum -a 256 "$scratch/AI-Sloppy-Paste.zip" | cut -d' ' -f1)"
     [[ "$remote_sha" == "$sha" ]] || { echo "Existing release has a different archive; bump the version." >&2; exit 1; }
     echo "Release already contains this archive; continuing with the tap."
 else
     gh release create "v$version" "$archive" "$out/SHA256SUMS" --repo "$repo" \
-        --target "$commit" --title "Sloppy Paste $version" --notes "$notes"
+        --target "$commit" --title "AI Sloppy Paste $version" --notes "$notes"
 fi
 
 cp "$out/sloppy-paste.rb" "$tap/$cask"

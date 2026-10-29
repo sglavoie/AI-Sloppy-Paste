@@ -113,7 +113,7 @@ final class Navigator {
             draftRecoveryError = nil
         } catch is DraftFileChanged {
             canWriteDrafts = false
-            draftRecoveryError = "Drafts changed in another copy of Sloppy Paste. The file at \(draftURL.path) is preserved. Keep this app open and copy your unsaved edits before restarting."
+            draftRecoveryError = "Drafts changed in another copy of AI Sloppy Paste. The file at \(draftURL.path) is preserved. Keep this app open and copy your unsaved edits before restarting."
         } catch {
             draftRecoveryError = "Cannot save drafts for recovery: \(error.localizedDescription) Keep the app open until this is resolved."
         }

@@ -8,8 +8,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 out=.build/release
-app="$out/SloppyPaste.app"
-archive="$out/SloppyPaste.zip"
+app="$out/AI Sloppy Paste.app"
+archive="$out/AI-Sloppy-Paste.zip"
 profile="${NOTARY_PROFILE:-launchgrid}"
 version="$(sed -n 's/.*static let version = "\(.*\)".*/\1/p' Sources/SloppyCore/SloppyCore.swift)"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release version: $version" >&2; exit 1; }
@@ -36,7 +36,7 @@ UNIVERSAL=1 just bundle
 
 rm -rf "$out"
 mkdir -p "$out"
-ditto .build/bundle/SloppyPaste.app "$app"
+ditto ".build/bundle/AI Sloppy Paste.app" "$app"
 for executable in SloppyPaste sloppyctl; do
     lipo "$app/Contents/MacOS/$executable" -verify_arch arm64
     lipo "$app/Contents/MacOS/$executable" -verify_arch x86_64
@@ -66,8 +66,8 @@ xcrun stapler validate "$app"
 spctl --assess --type execute --verbose "$app"
 rm "$archive"
 ditto -c -k --keepParent "$app" "$archive"
-(cd "$out" && shasum -a 256 SloppyPaste.zip > SHA256SUMS)
+(cd "$out" && shasum -a 256 AI-Sloppy-Paste.zip > SHA256SUMS)
 sha="$(cut -d' ' -f1 "$out/SHA256SUMS")"
 sed -e "s/@VERSION@/$version/" -e "s/@SHA256@/$sha/" \
     Resources/homebrew-cask.rb.in > "$out/sloppy-paste.rb"
-echo "Prepared Sloppy Paste $version. Run just publish to release it and update the tap."
+echo "Prepared AI Sloppy Paste $version. Run just publish to release it and update the tap."

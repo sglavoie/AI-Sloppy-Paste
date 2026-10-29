@@ -137,6 +137,7 @@ just
 | `show-dr` | Print the designated requirement of the built app. |
 | `setup-signing` | One-off: create the local code-signing identity. |
 | `release` | Test, build universal binaries, sign with Developer ID, notarize, and archive. |
+| `release patch\|minor\|major [notes]` | Bump and commit the version, prepare the release, push main, publish to GitHub, and update Homebrew. |
 | `publish` | Publish the prepared GitHub release and update the Homebrew cask. |
 | `clean` | Remove build artifacts. |
 
@@ -183,15 +184,38 @@ Releases follow the same local Developer ID and notarization workflow as
 LaunchGrid. Install `gh`, `just`, and Homebrew, and keep a clean clone of
 `sglavoie/homebrew-tap` at `../sglavoie_homebrew-tap` (or set `TAP_DIR`).
 
-1. Bump `SloppyCore.version` in `Sources/SloppyCore/SloppyCore.swift`, commit,
-   and push to `origin/main`.
-2. Run `just release`. It runs the tests, builds both architectures, signs the
-   app and `sloppyctl`, notarizes and staples the app, and prepares
+From a clean `main` branch, choose the version increment:
+
+```bash
+just release patch  # 0.1.0 -> 0.1.1
+just release minor  # 0.1.0 -> 0.2.0
+just release major  # 0.1.0 -> 1.0.0
+```
+
+Each example starts from `0.1.0`; run only the one you need. Optionally append
+release notes, for example `just release patch "Fix snippet search"`.
+The recipe updates `SloppyCore.version`, commits it, prepares the signed and
+notarized archive, pushes `main` (including any existing local commits), publishes
+the GitHub release, and commits and pushes the Homebrew cask update. Local `main`
+must include the latest `origin/main`; a behind or diverged branch is rejected.
+
+The individual steps remain available for manual releases and retries:
+
+1. For a manual release, edit `SloppyCore.version` in
+   `Sources/SloppyCore/SloppyCore.swift` and commit it.
+2. Run `just release` without a bump argument. It runs the tests, builds both
+   architectures, signs the app and `sloppyctl`, notarizes and staples the app, and prepares
    `.build/release/SloppyPaste.zip`, `SHA256SUMS`, and `sloppy-paste.rb`.
-3. Run `just publish`, optionally followed by release notes. It verifies the
-   prepared archive, publishes the GitHub release at the recorded build commit,
+3. Push to `origin/main`, then run `just publish`, optionally followed by release
+   notes. It verifies the prepared archive, publishes the GitHub release at the recorded build commit,
    and commits and pushes the cask update to the tap. A retry checks that an
    existing release contains the same archive before updating the cask.
+
+If the combined recipe fails after committing the version, it keeps that commit
+and prints recovery commands. Fix the error and resume the individual steps;
+do not run another bump to retry the same release. If preparation succeeded,
+retry `git push origin main` and `just publish` with any custom notes. If the
+build or notarization failed, run bare `just release` first to rebuild.
 
 `SIGN_IDENTITY` can select a Developer ID Application certificate by hash;
 otherwise the release script uses the sole matching identity in the keychain.
@@ -204,6 +228,10 @@ a separate profile, use `xcrun notarytool store-credentials sloppy-paste
 The cask is generated from `Resources/homebrew-cask.rb.in`; make lasting cask
 changes there. Release artifacts record their source commit and checksum, and
 publishing refuses an archive that differs from an already published version.
+
+Release orchestration tests use temporary Git repositories and stub the build
+and publishing services. Run them with
+`python3 -B -m unittest discover -s scripts/tests -v` (requires `just`).
 
 ## Permissions
 

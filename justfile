@@ -93,9 +93,9 @@ sign: bundle
         "{{app_path}}"
     codesign --verify --strict --verbose=2 "{{app_path}}"
 
-# Test, build universal binaries, sign with Developer ID, notarize and archive
-release:
-    scripts/release.sh
+# Prepare an archive, or bump patch/minor/major and publish to GitHub and Homebrew
+release bump="" *notes:
+    bash scripts/release-version.sh {{quote(bump)}} {{quote(notes)}}
 
 # Publish the prepared GitHub release and update sglavoie/homebrew-tap
 publish *notes:

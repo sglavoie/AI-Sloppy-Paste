@@ -15,6 +15,21 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 }
 
 @Suite struct ProcessConditionalBlocksTests {
+    @Test func elseCloserInsideValueDefaultDoesNotCorruptRenderedContent() {
+        let text = "{{#if show}}Yes{{#else}}{{value|{{/else}}{{/if}}"
+        #expect(PlaceholderSyntaxParser.parse(text).diagnostics.isEmpty)
+        #expect(PlaceholderRenderer.render(text, values: ["value": "Replacement"], now: 0) == "Replacement")
+        #expect(PlaceholderRenderer.render(text, values: [:], now: 0) == "{{/else")
+        #expect(bodies(text, "show") == [.init(ifBody: "Yes", elseBody: "{{value|{{/else}}")])
+    }
+
+    @Test func elseCloserInsideWrapperDoesNotCorruptRenderedContent() {
+        let text = "{{#if show}}Yes{{#else}}{{(:value:{{/else}}{{/if}}"
+        #expect(PlaceholderSyntaxParser.parse(text).diagnostics.isEmpty)
+        #expect(PlaceholderRenderer.render(text, values: ["value": "Replacement"], now: 0)
+            == "(Replacement{{/else")
+    }
+
     @Test func placeholderSyntaxInsideGuardLabelDoesNotCreateFields() {
         let text = #"{{#if +show "Include }} {{name}} and {{#if fake}}?"}}Hello{{/if}}"#
         let placeholders = extract(text)
@@ -267,6 +282,22 @@ private func bodies(_ text: String, _ key: String) -> [ConditionalBlockBody] {
 }
 
 @Suite struct ExtractConditionalBlockBodiesTests {
+    @Test(arguments: ["{{value|{{#if fake}}", "{{value|{{#else}}", "{{value|{{/if}}"])
+    func controlExamplesInValueDefaultsAreNotStructural(value: String) {
+        let text = "{{#if show}}Before \(value) After{{#else}}Hidden{{/if}}"
+        #expect(PlaceholderSyntaxParser.parse(text).diagnostics.isEmpty)
+        #expect(bodies(text, "show") == [.init(ifBody: "Before \(value) After", elseBody: "Hidden")])
+        #expect(bodies(text, "fake").isEmpty)
+        #expect(process(text, ["show": "true"]) == "Before \(value) After")
+    }
+
+    @Test func sameKeyNestedBlocksStayInsideCompletedOuterBody() {
+        let inner = "{{#if show}}Inner{{/if}}"
+        let text = "{{#if show}}Before \(inner) After{{/if}}{{#if show}}Next{{/if}}"
+        #expect(bodies(text, "show") == [.init(ifBody: "Before \(inner) After"), .init(ifBody: "Next")])
+        #expect(bodies("{{#if show}}Unfinished \(inner)", "show") == [.init(ifBody: "Inner")])
+    }
+
     @Test(arguments: ["\n", "\r\n", "\r"])
     func separateElseClosingLineIsExcludedFromPreview(newline: String) throws {
         let text = "{{#if show}}\(newline)Yes\(newline){{#else}}\(newline)No\(newline){{/else}}\(newline)  {{/if}}"

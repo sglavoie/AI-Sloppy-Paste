@@ -40,12 +40,14 @@ public enum ConditionalBlocks {
                 stack.append(RenderingBlock(opener: expression.raw, key: conditionKey(String(match.output.1))))
             } else if expression.raw == "{{#else}}", stack.count > 1, stack.last?.elseBody == nil {
                 stack[stack.count - 1].elseBody = ""
+            } else if expression.raw == "{{/else}}", stack.count > 1,
+                stack.last?.elseBody != nil, stack.last?.afterElseCloser == nil {
+                stack[stack.count - 1].afterElseCloser = ""
             } else if expression.raw == "{{/if}}", stack.count > 1 {
                 let block = stack.removeLast()
                 let body: String
                 if (values[block.key] ?? "").trimmed.isEmpty {
-                    body = (block.elseBody ?? "")
-                        .replacing(/\{\{\/else\}\}\s*$/.matchingSemantics(.unicodeScalar), with: "")
+                    body = block.selectedElseBody
                 } else {
                     body = block.ifBody
                 }
@@ -62,6 +64,9 @@ public enum ConditionalBlocks {
             stack[stack.count - 1].append(block.opener + block.ifBody)
             if let elseBody = block.elseBody {
                 stack[stack.count - 1].append("{{#else}}" + elseBody)
+                if let suffix = block.afterElseCloser {
+                    stack[stack.count - 1].append("{{/else}}" + suffix)
+                }
             }
         }
         return stack[0].ifBody
@@ -72,9 +77,19 @@ public enum ConditionalBlocks {
         var key: String
         var ifBody = ""
         var elseBody: String?
+        /// Text after a structural closer, kept for unfinished or malformed blocks.
+        var afterElseCloser: String?
+
+        var selectedElseBody: String {
+            let body = elseBody ?? ""
+            guard let suffix = afterElseCloser, !suffix.trimmed.isEmpty else { return body }
+            return body + "{{/else}}" + suffix
+        }
 
         mutating func append(_ text: some StringProtocol) {
-            if elseBody != nil {
+            if afterElseCloser != nil {
+                afterElseCloser!.append(contentsOf: text)
+            } else if elseBody != nil {
                 elseBody!.append(contentsOf: text)
             } else {
                 ifBody.append(contentsOf: text)
@@ -87,19 +102,58 @@ public enum ConditionalBlocks {
     /// unterminated blocks are skipped.
     public static func extractBodies(_ text: String, key: String) -> [ConditionalBlockBody] {
         let open = /\{\{#if\s+\+?([^\s}"]+)(?:\s+"[^"]*")?\s*\}\}/.matchingSemantics(.unicodeScalar)
+        let renderingOpen = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}/.matchingSemantics(.unicodeScalar)
+        let expressions = PlaceholderSyntaxParser.scanExpressions(text)
+        var stack: [ExtractionBlock] = []
+        var completed: [Int: (block: ExtractionBlock, close: Int)] = [:]
+        // Match structural tokens once. Raw regex searches can see examples
+        // inside value defaults as controls, and repeatedly rescan unfinished blocks.
+        for (index, expression) in expressions.enumerated() {
+            if expression.raw.wholeMatch(of: renderingOpen) != nil {
+                stack.append(ExtractionBlock(opener: index))
+            } else if expression.raw == "{{#else}}", let last = stack.indices.last,
+                stack[last].elseStart == nil {
+                stack[last].elseStart = index
+            } else if expression.raw == "{{/else}}", let last = stack.indices.last,
+                stack[last].elseStart != nil, stack[last].elseEnd == nil {
+                stack[last].elseEnd = index
+            } else if expression.raw == "{{/if}}", let block = stack.popLast() {
+                completed[block.opener] = (block, index)
+            }
+        }
+
         var results: [ConditionalBlockBody] = []
-        var searchStart = text.startIndex
-
-        while searchStart < text.endIndex, let match = text[searchStart...].firstMatch(of: open) {
-            searchStart = match.range.upperBound
-            guard String(match.output.1).trimmed == key,
-                  let close = matchingClose(in: text, from: match.range.upperBound)
-            else { continue }
-
-            results.append(splitTopLevelElse(String(text[match.range.upperBound..<close.lowerBound])))
-            searchStart = close.upperBound
+        var index = 0
+        while index < expressions.count {
+            let expression = expressions[index]
+            guard let match = expression.raw.wholeMatch(of: open), String(match.output.1).trimmed == key,
+                let (block, close) = completed[index] else {
+                index += 1
+                continue
+            }
+            let start = expression.indices.upperBound
+            let end = expressions[close].indices.lowerBound
+            if let elseStart = block.elseStart {
+                var elseEnd = end
+                if let closer = block.elseEnd,
+                    String(text[expressions[closer].indices.upperBound..<end]).trimmed.isEmpty {
+                    elseEnd = expressions[closer].indices.lowerBound
+                }
+                results.append(ConditionalBlockBody(
+                    ifBody: String(text[start..<expressions[elseStart].indices.lowerBound]),
+                    elseBody: String(text[expressions[elseStart].indices.upperBound..<elseEnd])))
+            } else {
+                results.append(ConditionalBlockBody(ifBody: String(text[start..<end])))
+            }
+            index = close + 1
         }
         return results
+    }
+
+    private struct ExtractionBlock {
+        var opener: Int
+        var elseStart: Int?
+        var elseEnd: Int?
     }
 
     /// `rawKey.trim()` minus a trailing `"Label"` and a leading `+`.
@@ -126,40 +180,5 @@ public enum ConditionalBlocks {
             scalars.removeLast()
         }
         return String(scalars)
-    }
-
-    private static func matchingClose(in text: String, from start: String.Index) -> Range<String.Index>? {
-        // Consume entire openers, including quoted labels, before looking for
-        // more control tags. A label may itself contain template examples.
-        let token = /\{\{#if\s+(?:[^}"]|"[^"]*")+\}\}|\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)
-        var depth = 1
-        for match in text[start...].matches(of: token) {
-            if match.output == "{{/if}}" {
-                depth -= 1
-                if depth == 0 { return match.range }
-            } else {
-                depth += 1
-            }
-        }
-        return nil
-    }
-
-    private static func splitTopLevelElse(_ body: String) -> ConditionalBlockBody {
-        let token = /\{\{#if\s+(?:[^}"]|"[^"]*")+\}\}|\{\{\/if\}\}|\{\{#else\}\}/.matchingSemantics(.unicodeScalar)
-        var depth = 0
-        for match in body.matches(of: token) {
-            switch match.output {
-            case "{{#else}}" where depth == 0:
-                // A closing else tag may be on its own line before /if.
-                // Ignore whitespace after the closer, preserving the body itself.
-                let elseBody = String(body[match.range.upperBound...])
-                    .replacing(/\{\{\/else\}\}\s*$/.matchingSemantics(.unicodeScalar), with: "")
-                return ConditionalBlockBody(ifBody: String(body[..<match.range.lowerBound]), elseBody: elseBody)
-            case "{{#else}}": break
-            case "{{/if}}": depth -= 1
-            default: depth += 1
-            }
-        }
-        return ConditionalBlockBody(ifBody: body)
     }
 }

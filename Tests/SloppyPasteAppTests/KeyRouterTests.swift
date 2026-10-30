@@ -4,6 +4,42 @@ import Testing
 @testable import SloppyPasteApp
 
 @Suite @MainActor struct KeyRouterTests {
+    @Test func copyPreservesSelectedTextBeforeUsingTheScreenShortcut() throws {
+        _ = NSApplication.shared
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),
+            styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        let text = NSTextView(frame: window.contentView!.bounds)
+        text.string = "Snippet content"
+        text.isEditable = false
+        text.isSelectable = true
+        window.contentView = text
+        #expect(window.makeFirstResponder(text))
+
+        var copiedTitle = false
+        let router = KeyRouter(navigator: Navigator(), onEscapeAtRoot: {})
+        router.start(for: window)
+        defer { router.stop() }
+        router.setBindings([
+            KeyBinding(id: "copyTitle", title: "Copy Title", chord: KeyChord(.character("c"), .command)) {
+                copiedTitle = true
+            },
+        ], for: .root, owner: UUID())
+        let copy = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero,
+            modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber,
+            context: nil, characters: "c", charactersIgnoringModifiers: "c", isARepeat: false,
+            keyCode: UInt16(kVK_ANSI_C)))
+
+        text.setSelectedRange(NSRange(location: 0, length: 7))
+        #expect(!router.handle(copy), "Selected text must receive the native Copy command")
+        #expect(!copiedTitle)
+
+        text.setSelectedRange(NSRange(location: 0, length: 0))
+        #expect(router.handle(copy))
+        #expect(copiedTitle)
+    }
+
     @Test func compositionKeepsNavigationAndSubmissionKeysInTheTextEditor() throws {
         _ = NSApplication.shared
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 100),

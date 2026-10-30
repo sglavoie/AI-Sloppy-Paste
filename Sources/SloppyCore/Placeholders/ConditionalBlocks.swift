@@ -24,9 +24,20 @@ public enum ConditionalBlocks {
     /// line behind. Placeholders inside the chosen body are left for
     /// `PlaceholderRenderer.replacePlaceholders`.
     public static func process(_ text: String, values: [String: String]) -> String {
+        resolve(text, values: values).text
+    }
+
+    /// Includes condition inputs that contributed to the selected output.
+    /// Conditions inside an excluded parent branch do not contribute.
+    struct Resolution {
+        var text: String
+        var conditionKeys: Set<String> = []
+    }
+
+    static func resolve(_ text: String, values: [String: String]) -> Resolution {
         // An unfinished block cannot render. Avoid repeatedly searching for
         // a closer that is absent while the user is still authoring it.
-        guard text.contains(/\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)) else { return text }
+        guard text.contains(/\{\{\/if\}\}/.matchingSemantics(.unicodeScalar)) else { return Resolution(text: text) }
         let open = /\{\{#if\s+((?:[^}"]|"[^"]*")+)\}\}/.matchingSemantics(.unicodeScalar)
         // Resolve blocks as their closing tags arrive, without rescanning the
         // entire document for every nesting level. The shared scanner also
@@ -39,19 +50,20 @@ public enum ConditionalBlocks {
             if let match = expression.raw.wholeMatch(of: open) {
                 stack.append(RenderingBlock(opener: expression.raw, key: conditionKey(String(match.output.1))))
             } else if expression.raw == "{{#else}}", stack.count > 1, stack.last?.elseBody == nil {
-                stack[stack.count - 1].elseBody = ""
+                stack[stack.count - 1].elseBody = Resolution(text: "")
             } else if expression.raw == "{{/else}}", stack.count > 1,
                 stack.last?.elseBody != nil, stack.last?.afterElseCloser == nil {
-                stack[stack.count - 1].afterElseCloser = ""
+                stack[stack.count - 1].afterElseCloser = Resolution(text: "")
             } else if expression.raw == "{{/if}}", stack.count > 1 {
                 let block = stack.removeLast()
-                let body: String
+                var body: Resolution
                 if (values[block.key] ?? "").trimmed.isEmpty {
                     body = block.selectedElseBody
                 } else {
                     body = block.ifBody
                 }
-                stack[stack.count - 1].append(stripOuterNewlines(body))
+                body.conditionKeys.insert(block.key)
+                stack[stack.count - 1].append(stripOuterNewlines(body.text), conditionKeys: body.conditionKeys)
             } else {
                 stack[stack.count - 1].append(expression.raw)
             }
@@ -61,11 +73,11 @@ public enum ConditionalBlocks {
         // nested blocks already resolved, as in the editor's live preview.
         while stack.count > 1 {
             let block = stack.removeLast()
-            stack[stack.count - 1].append(block.opener + block.ifBody)
+            stack[stack.count - 1].append(block.opener + block.ifBody.text, conditionKeys: block.ifBody.conditionKeys)
             if let elseBody = block.elseBody {
-                stack[stack.count - 1].append("{{#else}}" + elseBody)
+                stack[stack.count - 1].append("{{#else}}" + elseBody.text, conditionKeys: elseBody.conditionKeys)
                 if let suffix = block.afterElseCloser {
-                    stack[stack.count - 1].append("{{/else}}" + suffix)
+                    stack[stack.count - 1].append("{{/else}}" + suffix.text, conditionKeys: suffix.conditionKeys)
                 }
             }
         }
@@ -75,24 +87,29 @@ public enum ConditionalBlocks {
     private struct RenderingBlock {
         var opener: String
         var key: String
-        var ifBody = ""
-        var elseBody: String?
+        var ifBody = Resolution(text: "")
+        var elseBody: Resolution?
         /// Text after a structural closer, kept for unfinished or malformed blocks.
-        var afterElseCloser: String?
+        var afterElseCloser: Resolution?
 
-        var selectedElseBody: String {
-            let body = elseBody ?? ""
-            guard let suffix = afterElseCloser, !suffix.trimmed.isEmpty else { return body }
-            return body + "{{/else}}" + suffix
+        var selectedElseBody: Resolution {
+            var body = elseBody ?? Resolution(text: "")
+            guard let suffix = afterElseCloser, !suffix.text.trimmed.isEmpty else { return body }
+            body.text += "{{/else}}" + suffix.text
+            body.conditionKeys.formUnion(suffix.conditionKeys)
+            return body
         }
 
-        mutating func append(_ text: some StringProtocol) {
+        mutating func append(_ text: some StringProtocol, conditionKeys: Set<String> = []) {
             if afterElseCloser != nil {
-                afterElseCloser!.append(contentsOf: text)
+                afterElseCloser!.text.append(contentsOf: text)
+                afterElseCloser!.conditionKeys.formUnion(conditionKeys)
             } else if elseBody != nil {
-                elseBody!.append(contentsOf: text)
+                elseBody!.text.append(contentsOf: text)
+                elseBody!.conditionKeys.formUnion(conditionKeys)
             } else {
-                ifBody.append(contentsOf: text)
+                ifBody.text.append(contentsOf: text)
+                ifBody.conditionKeys.formUnion(conditionKeys)
             }
         }
     }

@@ -206,6 +206,38 @@ import Testing
         #expect(prepared.placeholderValues.contains(.init(key: "name", value: "Ada")))
     }
 
+    @Test(arguments: [false, true])
+    func conditionalInputsAreRememberedEvenWhenTheirValueOccurrenceIsExcluded(isPrivate: Bool) throws {
+        let marker = isPrivate ? "!" : ""
+        let s = snippet("{{#if name}}Named greeting{{#else}}Hello {{\(marker)name}}{{/if}}")
+        var form = PlaceholderFormModel(snippetContent: s.content,
+            placeholders: PlaceholderSyntaxParser.extractPlaceholders(s.content), history: [:], now: Self.now)
+        form.setCustomValue("name", "Ada")
+        let submission = form.prepareSubmission()
+        let prepared = try #require(submission)
+        #expect(prepared.content == "Named greeting")
+        #expect(prepared.placeholderValues == [.init(key: "name", value: "Ada", isSaved: !isPrivate)])
+
+        var repository = SnippetRepository(data: StorageData(snippets: [s]))
+        try repository.recordUse(id: s.id, placeholderValues: prepared.placeholderValues, now: Self.now)
+        #expect(repository.data.placeholderHistory["name"]?.first?.value == (isPrivate ? nil : "Ada"))
+        if !isPrivate {
+            #expect(SnippetPreparation.lastValuesAvailability(for: s,
+                history: repository.data.placeholderHistory, now: Self.now) == .available)
+        }
+    }
+
+    @Test func conditionalInputsInExcludedParentBranchesDoNotChangeHistory() throws {
+        let s = snippet("{{#if outer}}{{#if name}}Named{{#else}}{{name}}{{/if}}{{#else}}Anonymous{{/if}}")
+        var form = PlaceholderFormModel(snippetContent: s.content,
+            placeholders: PlaceholderSyntaxParser.extractPlaceholders(s.content), history: [:], now: Self.now)
+        form.setCustomValue("name", "Unused edit")
+        let submission = form.prepareSubmission()
+        let prepared = try #require(submission)
+        #expect(prepared.content == "Anonymous")
+        #expect(!prepared.placeholderValues.contains { $0.key == "name" })
+    }
+
     @Test func lastValuesRequiresHistoryForTheSelectedElseBranch() throws {
         let s = snippet("{{#if formal}}{{name}}{{#else}}{{nickname}}{{/if}}")
         #expect(SnippetPreparation.lastValuesAvailability(for: s, history: history(["name": "Ada"]), now: Self.now)

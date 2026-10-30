@@ -103,6 +103,9 @@ Use `{{!name}}` to keep a placeholder value out of history. When a key appears
 more than once, a `!` on any occurrence prevents saving that key's value,
 including when another occurrence declares its choices.
 
+History remembers values that appear in the output or choose an active
+conditional branch. Values used only inside an excluded branch are left unchanged.
+
 ⌘+ (or ⌘=) and ⌘- zoom the picker in and out, and ⌘0 resets it. The whole panel
 grows or shrinks with its contents, and the zoom level is remembered.
 

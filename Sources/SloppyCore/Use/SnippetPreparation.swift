@@ -63,14 +63,17 @@ public enum SnippetPreparation {
     }
 
     /// Renders already system-processed content with the form's final values.
-    /// Values found only in excluded branches do not count as history uses.
+    /// Values found only in excluded branches do not count as history uses,
+    /// unless they determined a conditional branch that contributed to output.
     public static func submission(
         content: String,
         placeholders: [Placeholder],
         finalValues: [String: String]
     ) -> PreparedSnippet {
-        let afterBlocks = ConditionalBlocks.process(content, values: finalValues)
+        let resolution = ConditionalBlocks.resolve(content, values: finalValues)
+        let afterBlocks = resolution.text
         let activeKeys = Set(PlaceholderSyntaxParser.parse(afterBlocks).occurrences.map(\.key))
+            .union(resolution.conditionKeys)
         let trackedPlaceholders = placeholders.filter { $0.isGuardOnly || activeKeys.contains($0.key) }
         return PreparedSnippet(
             content: PlaceholderRenderer.replacePlaceholders(afterBlocks, values: finalValues, placeholders: placeholders),

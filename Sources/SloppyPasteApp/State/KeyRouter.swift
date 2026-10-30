@@ -190,6 +190,13 @@ final class KeyRouter {
         if actionMenu.isOpen {
             return handleActionMenu(event)
         }
+        // The root's Copy Title shortcut must yield to a text selection,
+        // including selectable snippet details and a text field's editor.
+        if KeyChord(.character("c"), .command).matches(event),
+            let text = window?.firstResponder as? any NSTextInputClient,
+            text.selectedRange().length > 0 {
+            return false
+        }
         if Self.actionMenuChord.matches(event) {
             if !event.isARepeat { openActionMenu() }
             return true
